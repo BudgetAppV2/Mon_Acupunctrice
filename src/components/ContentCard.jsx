@@ -24,7 +24,7 @@ const PLATFORM_ICONS = {
   pinterest: '📌',
 }
 
-export default function ContentCard({ item, compact = false }) {
+export default function ContentCard({ item, compact = false, onSchedule }) {
   const statusClass = STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'
   const catClass = CATEGORY_COLORS[item.category] || 'text-gray-500'
 
@@ -44,24 +44,38 @@ export default function ContentCard({ item, compact = false }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-sand-200 p-4 shadow-sm hover:shadow-md transition">
+    <div className="bg-white rounded-xl border border-sand-200 p-4 shadow-sm hover:shadow-md transition group">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="font-medium text-sm text-gray-800 leading-snug">{item.title}</p>
         <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-medium ${statusClass}`}>
           {item.status}
         </span>
       </div>
+
       <p className={`text-xs font-medium capitalize mb-3 ${catClass}`}>{item.category}</p>
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1">
           {(item.platforms || []).map(p => (
             <span key={p} title={p} className="text-sm">{PLATFORM_ICONS[p] || '🌐'}</span>
           ))}
         </div>
-        {item.notes && (
+        {item.notes && !onSchedule && (
           <span className="text-xs text-gray-400 italic truncate max-w-[120px]">{item.notes}</span>
         )}
       </div>
+
+      {/* Bouton Planifier — visible seulement depuis la banque d'idées */}
+      {onSchedule && (
+        <button
+          onClick={() => onSchedule(item)}
+          className="mt-3 w-full text-xs font-medium text-sage-600 border border-sage-200
+                     hover:bg-sage-500 hover:text-white hover:border-sage-500
+                     rounded-lg py-1.5 transition"
+        >
+          Planifier →
+        </button>
+      )}
     </div>
   )
 }

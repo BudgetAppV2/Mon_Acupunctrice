@@ -6,17 +6,34 @@ import { useContentItems } from '../hooks/useContentItems.js'
 const CATEGORIES = ['toutes','fertilité','grossesse','post-partum','enfant','acupuncture-pour-tous','santé-générale']
 
 export default function IdeasPage() {
-  const [filter, setFilter]       = useState('toutes')
-  const [showModal, setShowModal] = useState(false)
-  const { items, loading, addItem } = useContentItems()
+  const [filter, setFilter]         = useState('toutes')
+  const [showModal, setShowModal]   = useState(false)
+  const [itemToSchedule, setItemToSchedule] = useState(null)
+  const { items, loading, addItem, updateItem } = useContentItems()
 
   // La banque d'idées = items sans date planifiée
   const ideas = items.filter(i => !i.scheduledDate)
   const filtered = filter === 'toutes' ? ideas : ideas.filter(i => i.category === filter)
 
+  // Ajouter une nouvelle idée
   const handleAdd = async (newItem) => {
     await addItem({ ...newItem, status: 'idée', scheduledDate: null })
     setShowModal(false)
+  }
+
+  // Planifier une idée existante → l'item reçoit une date et migre vers le calendrier
+  const handleSchedule = async (data) => {
+    if (data.existingId) {
+      await updateItem(data.existingId, {
+        title:         data.title,
+        category:      data.category,
+        status:        data.status,
+        platforms:     data.platforms,
+        notes:         data.notes,
+        scheduledDate: data.scheduledDate,
+      })
+    }
+    setItemToSchedule(null)
   }
 
   return (
@@ -32,7 +49,7 @@ export default function IdeasPage() {
         </button>
       </div>
 
-      {/* Filtres */}
+      {/* Filtres catégories */}
       <div className="flex flex-wrap gap-2 mb-6">
         {CATEGORIES.map(cat => (
           <button key={cat} onClick={() => setFilter(cat)}
@@ -50,7 +67,13 @@ export default function IdeasPage() {
         <div className="text-center py-20 text-gray-400">Chargement...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map(idea => <ContentCard key={idea.id} item={idea} />)}
+          {filtered.map(idea => (
+            <ContentCard
+              key={idea.id}
+              item={idea}
+              onSchedule={(item) => setItemToSchedule(item)}
+            />
+          ))}
           {filtered.length === 0 && (
             <p className="text-gray-400 text-sm col-span-3 text-center py-12">
               Aucune idée dans cette catégorie.
@@ -59,8 +82,21 @@ export default function IdeasPage() {
         </div>
       )}
 
+      {/* Modal nouvelle idée */}
       {showModal && (
-        <NewContentModal onSave={handleAdd} onClose={() => setShowModal(false)} />
+        <NewContentModal
+          onSave={handleAdd}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {/* Modal planifier une idée existante */}
+      {itemToSchedule && (
+        <NewContentModal
+          defaultItem={itemToSchedule}
+          onSave={handleSchedule}
+          onClose={() => setItemToSchedule(null)}
+        />
       )}
     </div>
   )

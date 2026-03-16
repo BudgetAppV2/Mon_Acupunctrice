@@ -5,14 +5,19 @@ const CATEGORIES = ['fertilité','grossesse','post-partum','enfant','acupuncture
 const STATUSES   = ['idée','à-filmer','filmé','monté','schedulé','publié']
 const PLATFORMS  = ['instagram','tiktok','youtube','facebook','pinterest']
 
-export default function NewContentModal({ defaultDate, onSave, onClose }) {
+// defaultDate  : Date JS — pré-remplit la date (depuis le calendrier)
+// defaultItem  : objet item — pré-remplit tout (depuis "Planifier" dans la banque d'idées)
+// mode         : 'new' | 'schedule' — change le titre du modal
+export default function NewContentModal({ defaultDate, defaultItem, onSave, onClose }) {
+  const isScheduleMode = !!defaultItem
+
   const [form, setForm] = useState({
-    title: '',
-    category: 'grossesse',
-    status: 'idée',
-    platforms: ['instagram'],
+    title:         defaultItem?.title    ?? '',
+    category:      defaultItem?.category ?? 'grossesse',
+    status:        isScheduleMode ? 'à-filmer' : 'idée',
+    platforms:     defaultItem?.platforms ?? ['instagram'],
     scheduledDate: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '',
-    notes: '',
+    notes:         defaultItem?.notes    ?? '',
   })
 
   const togglePlatform = (p) => {
@@ -28,14 +33,24 @@ export default function NewContentModal({ defaultDate, onSave, onClose }) {
     if (!form.title.trim()) return
     onSave({
       ...form,
-      scheduledDate: form.scheduledDate ? new Date(form.scheduledDate) : null,
+      // Si on planifie un item existant, on passe son id pour updateItem
+      existingId: defaultItem?.id ?? null,
+      scheduledDate: form.scheduledDate ? new Date(form.scheduledDate + 'T12:00:00') : null,
     })
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <h3 className="text-lg font-semibold text-sage-800 mb-4">Nouveau contenu</h3>
+
+        <h3 className="text-lg font-semibold text-sage-800 mb-1">
+          {isScheduleMode ? '📅 Planifier ce contenu' : 'Nouveau contenu'}
+        </h3>
+        {isScheduleMode && (
+          <p className="text-xs text-gray-400 mb-4">
+            Choisis une date pour déplacer cette idée dans le calendrier.
+          </p>
+        )}
 
         <div className="space-y-4">
           {/* Titre */}
@@ -73,12 +88,16 @@ export default function NewContentModal({ defaultDate, onSave, onClose }) {
             </div>
           </div>
 
-          {/* Date */}
+          {/* Date — mise en évidence en mode planification */}
           <div>
-            <label className="text-xs font-medium text-gray-500 mb-1 block">Date de publication prévue</label>
+            <label className={`text-xs font-medium mb-1 block ${isScheduleMode ? 'text-sage-600' : 'text-gray-500'}`}>
+              {isScheduleMode ? '📅 Date de publication *' : 'Date de publication prévue'}
+            </label>
             <input
               type="date"
-              className="w-full border border-sand-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300"
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sage-300 ${
+                isScheduleMode ? 'border-sage-300 bg-sage-50' : 'border-sand-200'
+              }`}
               value={form.scheduledDate}
               onChange={e => setForm(f => ({ ...f, scheduledDate: e.target.value }))}
             />
@@ -127,10 +146,10 @@ export default function NewContentModal({ defaultDate, onSave, onClose }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!form.title.trim()}
+            disabled={!form.title.trim() || (isScheduleMode && !form.scheduledDate)}
             className="flex-1 bg-sage-500 hover:bg-sage-600 disabled:opacity-40 text-white py-2 rounded-full text-sm font-medium transition"
           >
-            Sauvegarder
+            {isScheduleMode ? 'Planifier →' : 'Sauvegarder'}
           </button>
         </div>
       </div>
