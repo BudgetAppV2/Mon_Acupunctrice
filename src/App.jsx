@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import CalendarPage from './pages/CalendarPage.jsx'
 import IdeasPage from './pages/IdeasPage.jsx'
+import BlitzPage from './pages/BlitzPage.jsx'
 
 const TABS = [
+  { id: 'blitz',    label: '🎬 Blitz' },
   { id: 'calendar', label: '📅 Calendrier' },
   { id: 'ideas',    label: '💡 Banque d\'idées' },
 ]
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('calendar')
+  const [activeTab, setActiveTab] = useState('blitz')
 
   return (
     <div className="min-h-screen bg-sand-50">
@@ -37,6 +39,7 @@ export default function App() {
 
       {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
+        {activeTab === 'blitz'    && <BlitzPage />}
         {activeTab === 'calendar' && <CalendarPage />}
         {activeTab === 'ideas'    && <IdeasPage />}
       </main>
