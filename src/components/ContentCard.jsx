@@ -24,7 +24,7 @@ const PLATFORM_ICONS = {
   pinterest: '📌',
 }
 
-export default function ContentCard({ item, compact = false, onSchedule, onOpen }) {
+export default function ContentCard({ item, compact = false, onSchedule, onOpen, onDelete }) {
   const statusClass = STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'
   const catClass = CATEGORY_COLORS[item.category] || 'text-gray-500'
 
@@ -65,16 +65,34 @@ export default function ContentCard({ item, compact = false, onSchedule, onOpen 
         )}
       </div>
 
-      {/* Bouton Planifier — visible seulement depuis la banque d'idées */}
-      {onSchedule && (
-        <button
-          onClick={() => onSchedule(item)}
-          className="mt-3 w-full text-xs font-medium text-sage-600 border border-sage-200
-                     hover:bg-sage-500 hover:text-white hover:border-sage-500
-                     rounded-lg py-1.5 transition"
-        >
-          Planifier →
-        </button>
+      {/* Actions — visibles depuis la banque d'idées */}
+      {(onSchedule || onDelete) && (
+        <div className="mt-3 flex gap-2">
+          {onSchedule && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSchedule(item) }}
+              className="flex-1 text-xs font-medium text-sage-600 border border-sage-200
+                         hover:bg-sage-500 hover:text-white hover:border-sage-500
+                         rounded-lg py-1.5 transition"
+            >
+              Planifier &rarr;
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm(`Supprimer "${item.title}" ?`)) onDelete(item.id)
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-red-400 border border-red-200
+                         hover:bg-red-500 hover:text-white hover:border-red-500
+                         rounded-lg transition"
+              title="Supprimer"
+            >
+              🗑
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

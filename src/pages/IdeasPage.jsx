@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ContentCard from '../components/ContentCard.jsx'
 import NewContentModal from '../components/NewContentModal.jsx'
 import { useContentItems } from '../hooks/useContentItems.js'
@@ -6,10 +7,11 @@ import { useContentItems } from '../hooks/useContentItems.js'
 const CATEGORIES = ['toutes','fertilité','grossesse','post-partum','enfant','acupuncture-pour-tous','santé-générale']
 
 export default function IdeasPage({ onSelectItem }) {
+  const navigate = useNavigate()
   const [filter, setFilter]         = useState('toutes')
   const [showModal, setShowModal]   = useState(false)
   const [itemToSchedule, setItemToSchedule] = useState(null)
-  const { items, loading, addItem, updateItem } = useContentItems()
+  const { items, loading, addItem, updateItem, deleteItem } = useContentItems()
 
   // La banque d'idées = items sans date planifiée
   const ideas = items.filter(i => !i.scheduledDate)
@@ -72,7 +74,8 @@ export default function IdeasPage({ onSelectItem }) {
               key={idea.id}
               item={idea}
               onSchedule={(item) => setItemToSchedule(item)}
-              onOpen={onSelectItem}
+              onOpen={(item) => navigate(`/editeur/${item.id}`)}
+              onDelete={deleteItem}
             />
           ))}
           {filtered.length === 0 && (

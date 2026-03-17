@@ -1,18 +1,30 @@
 import { useState } from 'react'
+import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import CalendarPage from './pages/CalendarPage.jsx'
 import IdeasPage from './pages/IdeasPage.jsx'
 import BlitzPage from './pages/BlitzPage.jsx'
+import EditorPage from './editor/EditorPage.jsx'
 import ItemPanel from './components/ItemPanel.jsx'
 
 const TABS = [
-  { id: 'blitz',    label: '🎬 Blitz' },
-  { id: 'calendar', label: '📅 Calendrier' },
-  { id: 'ideas',    label: '💡 Banque d\'idées' },
+  { id: 'blitz',    label: '🎬 Blitz',           path: '/blitz' },
+  { id: 'calendar', label: '📅 Calendrier',       path: '/calendrier' },
+  { id: 'ideas',    label: '💡 Banque d\'idées',  path: '/idees' },
 ]
 
 export default function App() {
-  const [activeTab, setActiveTab]       = useState('blitz')
   const [selectedItem, setSelectedItem] = useState(null)
+  const location = useLocation()
+  const isEditor = location.pathname.startsWith('/editeur')
+
+  // Editor is full-screen, no hub chrome
+  if (isEditor) {
+    return (
+      <Routes>
+        <Route path="/editeur/:id" element={<EditorPage />} />
+      </Routes>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-sand-50">
@@ -24,26 +36,32 @@ export default function App() {
         </div>
         <nav className="flex gap-2">
           {TABS.map(tab => (
-            <button
+            <NavLink
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'bg-sage-500 text-white shadow-sm'
-                  : 'text-gray-500 hover:bg-sage-50 hover:text-sage-700'
-              }`}
+              to={tab.path}
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  isActive
+                    ? 'bg-sage-500 text-white shadow-sm'
+                    : 'text-gray-500 hover:bg-sage-50 hover:text-sage-700'
+                }`
+              }
             >
               {tab.label}
-            </button>
+            </NavLink>
           ))}
         </nav>
       </header>
 
       {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {activeTab === 'blitz'    && <BlitzPage    onSelectItem={setSelectedItem} />}
-        {activeTab === 'calendar' && <CalendarPage onSelectItem={setSelectedItem} />}
-        {activeTab === 'ideas'    && <IdeasPage    onSelectItem={setSelectedItem} />}
+        <Routes>
+          <Route path="/" element={<Navigate to="/calendrier" replace />} />
+          <Route path="/blitz" element={<BlitzPage onSelectItem={setSelectedItem} />} />
+          <Route path="/calendrier" element={<CalendarPage onSelectItem={setSelectedItem} />} />
+          <Route path="/idees" element={<IdeasPage onSelectItem={setSelectedItem} />} />
+          <Route path="*" element={<Navigate to="/calendrier" replace />} />
+        </Routes>
       </main>
 
       {/* Panneau latéral — ouvert si un item est sélectionné */}

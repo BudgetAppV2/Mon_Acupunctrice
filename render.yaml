@@ -9,6 +9,12 @@ services:
       - path: /*
         name: Cache-Control
         value: no-cache
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      - path: /*
+        name: Cross-Origin-Embedder-Policy
+        value: require-corp
     routes:
       - type: rewrite
         source: /*
