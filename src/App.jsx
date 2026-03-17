@@ -2,6 +2,7 @@ import { useState } from 'react'
 import CalendarPage from './pages/CalendarPage.jsx'
 import IdeasPage from './pages/IdeasPage.jsx'
 import BlitzPage from './pages/BlitzPage.jsx'
+import ItemPanel from './components/ItemPanel.jsx'
 
 const TABS = [
   { id: 'blitz',    label: '🎬 Blitz' },
@@ -10,7 +11,8 @@ const TABS = [
 ]
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('blitz')
+  const [activeTab, setActiveTab]       = useState('blitz')
+  const [selectedItem, setSelectedItem] = useState(null)
 
   return (
     <div className="min-h-screen bg-sand-50">
@@ -39,10 +41,18 @@ export default function App() {
 
       {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {activeTab === 'blitz'    && <BlitzPage />}
-        {activeTab === 'calendar' && <CalendarPage />}
-        {activeTab === 'ideas'    && <IdeasPage />}
+        {activeTab === 'blitz'    && <BlitzPage    onSelectItem={setSelectedItem} />}
+        {activeTab === 'calendar' && <CalendarPage onSelectItem={setSelectedItem} />}
+        {activeTab === 'ideas'    && <IdeasPage    onSelectItem={setSelectedItem} />}
       </main>
+
+      {/* Panneau latéral — ouvert si un item est sélectionné */}
+      {selectedItem && (
+        <ItemPanel
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </div>
   )
 }

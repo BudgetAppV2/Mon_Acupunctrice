@@ -8,7 +8,7 @@ import { useContentItems } from '../hooks/useContentItems.js'
 
 const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
-export default function CalendarPage() {
+export default function CalendarPage({ onSelectItem }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay]   = useState(null)
   const [showModal, setShowModal]       = useState(false)
@@ -69,7 +69,7 @@ export default function CalendarPage() {
                     {format(day, 'd')}
                   </span>
                   <div className="space-y-1">
-                    {dayItems.map(item => <ContentCard key={item.id} item={item} compact />)}
+                    {dayItems.map(item => <ContentCard key={item.id} item={item} compact onOpen={onSelectItem} />)}
                   </div>
                 </div>
               )

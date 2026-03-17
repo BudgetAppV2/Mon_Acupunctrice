@@ -5,7 +5,7 @@ import { useContentItems } from '../hooks/useContentItems.js'
 
 const CATEGORIES = ['toutes','fertilité','grossesse','post-partum','enfant','acupuncture-pour-tous','santé-générale']
 
-export default function IdeasPage() {
+export default function IdeasPage({ onSelectItem }) {
   const [filter, setFilter]         = useState('toutes')
   const [showModal, setShowModal]   = useState(false)
   const [itemToSchedule, setItemToSchedule] = useState(null)
@@ -72,6 +72,7 @@ export default function IdeasPage() {
               key={idea.id}
               item={idea}
               onSchedule={(item) => setItemToSchedule(item)}
+              onOpen={onSelectItem}
             />
           ))}
           {filtered.length === 0 && (

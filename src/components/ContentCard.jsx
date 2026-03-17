@@ -24,13 +24,13 @@ const PLATFORM_ICONS = {
   pinterest: '📌',
 }
 
-export default function ContentCard({ item, compact = false, onSchedule }) {
+export default function ContentCard({ item, compact = false, onSchedule, onOpen }) {
   const statusClass = STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'
   const catClass = CATEGORY_COLORS[item.category] || 'text-gray-500'
 
   if (compact) {
     return (
-      <div className={`rounded px-2 py-1 text-xs truncate border-l-2 ${
+      <div onClick={() => onOpen && onOpen(item)} className={`rounded px-2 py-1 text-xs truncate border-l-2 ${onOpen ? "cursor-pointer hover:opacity-80" : ""} ${
         item.status === 'publié'   ? 'border-sage-500 bg-sage-50' :
         item.status === 'schedulé' ? 'border-orange-400 bg-orange-50' :
         item.status === 'filmé'    ? 'border-blue-400 bg-blue-50' :
@@ -44,7 +44,7 @@ export default function ContentCard({ item, compact = false, onSchedule }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-sand-200 p-4 shadow-sm hover:shadow-md transition group">
+    <div onClick={() => onOpen && onOpen(item)} className={`bg-white rounded-xl border border-sand-200 p-4 shadow-sm hover:shadow-md transition group ${onOpen ? "cursor-pointer" : ""}`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="font-medium text-sm text-gray-800 leading-snug">{item.title}</p>
         <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-medium ${statusClass}`}>

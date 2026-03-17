@@ -22,7 +22,7 @@ const CATEGORY_ORDER = [
   'acupuncture-pour-tous', 'santé-générale'
 ]
 
-export default function BlitzPage() {
+export default function BlitzPage({ onSelectItem }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const { items, loading, updateItem } = useContentItems()
 
@@ -135,7 +135,7 @@ export default function BlitzPage() {
                     return (
                       <div
                         key={item.id}
-                        onClick={() => toggleFilmed(item)}
+                        onClick={() => onSelectItem && onSelectItem(item)}
                         className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer
                           transition-all active:scale-98 select-none
                           ${isFilmed
@@ -144,7 +144,7 @@ export default function BlitzPage() {
                           }`}
                       >
                         {/* Checkbox */}
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                        <div onClick={(e) => { e.stopPropagation(); toggleFilmed(item) }} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all cursor-pointer ${
                           isFilmed
                             ? 'bg-sage-500 border-sage-500'
                             : 'border-gray-300 bg-white'
