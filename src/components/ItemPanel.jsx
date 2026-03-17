@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { storage } from '../firebase.js'
 import { useContentItems } from '../hooks/useContentItems.js'
 
@@ -80,52 +81,25 @@ export default function ItemPanel({ item, onClose }) {
     )
   }
 
-  // Générer une caption avec Claude API
+  // Générer une caption via Cloud Function
   const handleGenerateCaption = async () => {
     setGenerating(true)
     try {
-      const platformList = (item.platforms || ['instagram']).join(', ')
-      const prompt = `Tu es un assistant spécialisé en contenu pour les réseaux sociaux pour une acupunctrice québécoise.
-
-Génère 2 options de caption Instagram/TikTok pour le sujet suivant :
-
-Sujet : ${item.title}
-Catégorie : ${item.category}
-Plateformes : ${platformList}
-Notes : ${item.notes || 'aucune'}
-
-Règles importantes (code de déontologie de l'Ordre des acupuncteurs du Québec) :
-- Ton éducatif, pas commercial
-- Information factuelle et vérifiable
-- Pas de témoignages de patients
-- Pas de garanties de résultats
-- Indiquer le titre "acupunctrice" quelque part
-
-Format de chaque option :
-- Accroche forte (1-2 lignes)
-- Corps (2-4 lignes éducatives)
-- CTA vers le lien en bio
-- 5-8 hashtags québécois pertinents
-
-Sépare les 2 options par "---"`
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+      const functions = getFunctions()
+      const generateCaption = httpsCallable(functions, 'generateCaption')
+      const result = await generateCaption({
+        title: item.title,
+        category: item.category,
+        platforms: item.platforms || ['instagram'],
+        notes: item.notes || '',
       })
-
-      const data = await response.json()
-      const generated = data.content?.[0]?.text || ''
+      const { options } = result.data
+      const generated = options.join('\n\n---\n\n')
       setCaption(generated)
       await updateItem(item.id, { caption: generated })
     } catch (err) {
-      console.error('Caption generation error:', err)
-      alert('Erreur lors de la génération. Réessaie.')
+      console.error('Caption error:', err)
+      alert('Erreur lors de la génération.')
     } finally {
       setGenerating(false)
     }
