@@ -17,6 +17,11 @@ export function useFFmpeg() {
 
     setLoading(true)
     try {
+      // Check if SharedArrayBuffer is available (requires COOP/COEP headers)
+      if (!window.crossOriginIsolated) {
+        console.warn('crossOriginIsolated is false — SharedArrayBuffer disabled. FFmpeg.wasm will run in single-thread fallback. Ensure COOP/COEP headers are set.')
+      }
+
       const ffmpeg = new FFmpeg()
       ffmpegRef.current = ffmpeg
 

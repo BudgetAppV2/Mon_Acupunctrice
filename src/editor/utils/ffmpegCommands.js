@@ -30,18 +30,22 @@ export function buildExportCommand(opts) {
 
   const args = []
 
+  // Trim: -ss BEFORE -i = input seeking (much faster, skips decoding)
+  if (trimStart > 0) {
+    args.push('-ss', String(trimStart))
+  }
+
   // Input file
   args.push('-i', inputFile)
+
+  // Trim duration (after -i so it's relative to seeked position)
+  if (trimEnd && trimEnd > trimStart) {
+    args.push('-t', String(trimEnd - trimStart))
+  }
 
   // Import audio if provided
   if (audioFile) {
     args.push('-i', audioFile)
-  }
-
-  // Trim
-  args.push('-ss', String(trimStart))
-  if (trimEnd) {
-    args.push('-t', String(trimEnd - trimStart))
   }
 
   // Build video filter chain
@@ -87,10 +91,13 @@ export function buildExportCommand(opts) {
   }
 
   // Output codec settings
+  // NOTE: ultrafast + crf 28 optimized for FFmpeg.wasm single-thread perf.
+  // Real solution: migrate to WebCodecs + Mediabunny (Phase 3) for 10-50x speedup.
   args.push(
     '-c:v', 'libx264',
-    '-preset', 'medium',
-    '-crf', '23',
+    '-preset', 'ultrafast',
+    '-crf', '28',
+    '-threads', '1',
     '-c:a', 'aac',
     '-b:a', '128k',
     '-movflags', '+faststart',

@@ -74,35 +74,36 @@ export default function EditorPage() {
       <EditorToolbar onExport={handleExportClick} />
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Preview area */}
-        <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+        {/* Preview area — capped at 45vh on mobile so tools stay visible */}
+        <div className="flex items-center justify-center p-2 lg:p-4 min-h-0
+                        max-h-[45vh] lg:max-h-none lg:flex-1">
           <VideoPreview />
         </div>
 
-        {/* Side panel (desktop: right side, mobile: bottom sheet) */}
+        {/* Side panel (desktop: right side, mobile: below preview) */}
         <div className="lg:w-80 bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700
-                        overflow-y-auto flex-shrink-0">
-          {/* Panel tabs */}
-          <div className="flex border-b border-gray-700">
+                        flex flex-col flex-shrink-0 min-h-0 flex-1 lg:flex-none">
+          {/* Panel tabs — always visible, never scrolls */}
+          <div className="flex border-b border-gray-700 flex-shrink-0">
             {PANELS.map(panel => (
               <button
                 key={panel.id}
                 onClick={() => setActivePanel(panel.id)}
-                className={`flex-1 py-2.5 text-xs font-medium text-center transition ${
+                className={`flex-1 py-2 lg:py-2.5 text-xs font-medium text-center transition ${
                   activePanel === panel.id
                     ? 'text-sage-400 border-b-2 border-sage-400'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
                 <span className="block text-base mb-0.5">{panel.icon}</span>
-                {panel.label}
+                <span className="hidden sm:inline">{panel.label}</span>
               </button>
             ))}
           </div>
 
-          {/* Active panel content */}
-          <div className="min-h-0">
+          {/* Active panel content — scrollable */}
+          <div className="overflow-y-auto flex-1 min-h-0">
             {activePanel === 'trim' && <VideoTrimmer />}
             {activePanel === 'text' && <TextOverlayPanel />}
             {activePanel === 'subtitles' && <SubtitlePanel />}
@@ -111,8 +112,10 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* Timeline */}
-      <Timeline />
+      {/* Timeline — scrollable horizontally */}
+      <div className="flex-shrink-0">
+        <Timeline />
+      </div>
 
       {/* Import modal */}
       {showImportModal && <ImportModal />}
