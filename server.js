@@ -12,6 +12,28 @@ app.use((req, res, next) => {
   next()
 })
 
+// Proxy for Firebase Storage images — bypasses COEP blocking
+// COEP: require-corp blocks cross-origin images that don't send
+// Cross-Origin-Resource-Policy header. Firebase Storage doesn't send it.
+app.get('/proxy-image', async (req, res) => {
+  const url = req.query.url
+  if (!url || !url.startsWith('https://firebasestorage.googleapis.com/')) {
+    return res.status(400).send('URL invalide')
+  }
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return res.status(response.status).send('Fetch failed')
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg')
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    const buffer = await response.arrayBuffer()
+    res.send(Buffer.from(buffer))
+  } catch (err) {
+    console.error('Proxy error:', err)
+    res.status(500).send('Proxy error')
+  }
+})
+
 // Serve static files from Vite build output
 app.use(express.static(path.join(__dirname, 'dist')))
 

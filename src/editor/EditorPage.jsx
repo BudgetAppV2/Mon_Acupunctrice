@@ -40,9 +40,20 @@ export default function EditorPage() {
     const item = items.find(i => i.id === id)
     if (item) {
       setContentItem(id, item)
-      // If item already has a video, load it
+      // If item already has a video, fetch blob and load into store
       if (item.videoUrl && !videoUrl) {
-        loadVideo(null, item.videoUrl)
+        ;(async () => {
+          try {
+            const response = await fetch(item.videoUrl)
+            const blob = await response.blob()
+            const localUrl = URL.createObjectURL(blob)
+            loadVideo(blob, localUrl)
+          } catch (err) {
+            console.error('Failed to fetch video from storage:', err)
+            // Fallback: use remote URL directly (preview only, export may fail)
+            loadVideo(null, item.videoUrl)
+          }
+        })()
       }
     }
   }, [id, items, setContentItem, loadVideo, videoUrl])
@@ -86,13 +97,13 @@ export default function EditorPage() {
         {/* Side panel (desktop: right, mobile: below preview) */}
         <div className="lg:w-80 bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700
                         flex flex-col min-h-0 flex-1 lg:flex-none overflow-hidden">
-          {/* Panel tabs — always visible, fixed height */}
-          <div className="h-[52px] flex-shrink-0 flex border-b border-gray-700">
+          {/* Panel tabs — always visible, fixed height, equal width */}
+          <div className="flex w-full border-b border-gray-700 flex-shrink-0 h-[52px]">
             {PANELS.map(panel => (
               <button
                 key={panel.id}
                 onClick={() => setActivePanel(panel.id)}
-                className={`flex-1 flex flex-col items-center justify-center text-xs font-medium transition ${
+                className={`flex-1 min-w-0 flex flex-col items-center justify-center text-xs font-medium transition ${
                   activePanel === panel.id
                     ? 'text-sage-400 border-b-2 border-sage-400'
                     : 'text-gray-500 hover:text-gray-300'

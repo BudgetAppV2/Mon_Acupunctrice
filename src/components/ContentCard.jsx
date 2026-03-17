@@ -24,9 +24,19 @@ const PLATFORM_ICONS = {
   pinterest: '📌',
 }
 
+// Proxy Firebase Storage URLs through our server to bypass COEP blocking
+const proxyThumb = (url) => {
+  if (!url) return null
+  if (url.startsWith('https://firebasestorage.googleapis.com/')) {
+    return `/proxy-image?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
 export default function ContentCard({ item, compact = false, onSchedule, onOpen, onDelete }) {
   const statusClass = STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'
   const catClass = CATEGORY_COLORS[item.category] || 'text-gray-500'
+  const thumbUrl = proxyThumb(item.thumbnailUrl)
 
   if (compact) {
     return (
@@ -38,8 +48,8 @@ export default function ContentCard({ item, compact = false, onSchedule, onOpen,
         item.status === 'à-filmer' ? 'border-yellow-400 bg-yellow-50' :
         'border-gray-300 bg-gray-50'
       }`}>
-        {item.thumbnailUrl && (
-          <img src={item.thumbnailUrl} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
+        {thumbUrl && (
+          <img src={thumbUrl} alt="" className="w-5 h-5 rounded object-cover flex-shrink-0" />
         )}
         <span className="truncate">{item.title}</span>
       </div>
