@@ -1,8 +1,32 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Stage, Layer, Text } from 'react-konva'
 import useEditorStore from '../store/useEditorStore.js'
 import { useVideoPlayer } from '../hooks/useVideoPlayer.js'
 import { formatTime } from '../utils/timeUtils.js'
+
+function useResponsivePreview() {
+  const [dims, setDims] = useState(() => calcDims())
+
+  function calcDims() {
+    const isMobile = window.innerWidth < 1024
+    if (isMobile) {
+      // Mobile: fit within 38vh, maintain 9:16 aspect
+      const maxH = Math.min(360, window.innerHeight * 0.38)
+      const h = Math.round(maxH)
+      const w = Math.round(h * 9 / 16)
+      return { width: w, height: h }
+    }
+    return { width: 360, height: 640 }
+  }
+
+  useEffect(() => {
+    const onResize = () => setDims(calcDims())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  return dims
+}
 
 export default function VideoPreview() {
   const { videoRef, seekTo } = useVideoPlayer()
@@ -30,9 +54,8 @@ export default function VideoPreview() {
     setVideoDimensions(video.videoWidth, video.videoHeight, video.duration)
   }, [videoRef, setVideoDimensions])
 
-  // Preview dimensions (fit in container, max 9:16 aspect)
-  const previewWidth = 360
-  const previewHeight = 640
+  // Responsive preview dimensions — 9:16 aspect, capped on mobile
+  const { width: previewWidth, height: previewHeight } = useResponsivePreview()
 
   // Visible text overlays at current time
   const visibleOverlays = textOverlays.filter(
