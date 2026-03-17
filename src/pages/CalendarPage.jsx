@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval,
          isSameDay, addMonths, subMonths, getDay } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -9,6 +10,7 @@ import { useContentItems } from '../hooks/useContentItems.js'
 const DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
 export default function CalendarPage({ onSelectItem }) {
+  const navigate = useNavigate()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay]   = useState(null)
   const [showModal, setShowModal]       = useState(false)
@@ -69,7 +71,7 @@ export default function CalendarPage({ onSelectItem }) {
                     {format(day, 'd')}
                   </span>
                   <div className="space-y-1">
-                    {dayItems.map(item => <ContentCard key={item.id} item={item} compact onOpen={onSelectItem} />)}
+                    {dayItems.map(item => <ContentCard key={item.id} item={item} compact onOpen={(item) => navigate(`/editeur/${item.id}`)} />)}
                   </div>
                 </div>
               )

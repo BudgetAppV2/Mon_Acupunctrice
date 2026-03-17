@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../firebase.js'
 import useEditorStore from '../store/useEditorStore.js'
@@ -14,8 +15,10 @@ const FORMAT_OPTIONS = [
 ]
 
 export default function ExportModal({ onClose }) {
+  const navigate = useNavigate()
   const [format, setFormat] = useState(FORMAT_OPTIONS[0])
   const [uploading, setUploading] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   const { load, writeFile, readFile, exec } = useFFmpeg()
   const { updateItem } = useContentItems()
@@ -113,23 +116,69 @@ export default function ExportModal({ onClose }) {
     }
   }
 
+  /**
+   * Generate a thumbnail from the exported video (frame at t=0)
+   */
+  const generateThumbnail = (videoSrc) => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.muted = true
+      video.playsInline = true
+      video.preload = 'auto'
+      video.src = videoSrc
+
+      video.onloadeddata = () => {
+        video.currentTime = 0.1 // slight offset to avoid blank frame
+      }
+
+      video.onseeked = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(video, 0, 0)
+        canvas.toBlob((blob) => {
+          resolve(blob)
+        }, 'image/jpeg', 0.85)
+      }
+
+      // Fallback if seeking fails
+      video.onerror = () => resolve(null)
+      setTimeout(() => resolve(null), 5000)
+    })
+  }
+
   const handleUploadToStorage = async () => {
     const blob = useEditorStore.getState().exportedBlob
     if (!blob || !contentItemId) return
 
     setUploading(true)
     try {
-      const fileName = `export-${Date.now()}.mp4`
-      const storageRef = ref(storage, `videos/${contentItemId}/${fileName}`)
-      await uploadBytes(storageRef, blob)
-      const downloadUrl = await getDownloadURL(storageRef)
+      // 1. Upload MP4
+      const videoFileName = `export-${Date.now()}.mp4`
+      const videoRef = ref(storage, `videos/${contentItemId}/${videoFileName}`)
+      await uploadBytes(videoRef, blob)
+      const videoDownloadUrl = await getDownloadURL(videoRef)
 
-      await updateItem(contentItemId, {
-        videoUrl: downloadUrl,
+      // 2. Generate & upload thumbnail
+      let thumbnailUrl = null
+      const thumbBlob = await generateThumbnail(exportedUrl)
+      if (thumbBlob) {
+        const thumbRef = ref(storage, `videos/${contentItemId}/thumbnail.jpg`)
+        await uploadBytes(thumbRef, thumbBlob)
+        thumbnailUrl = await getDownloadURL(thumbRef)
+      }
+
+      // 3. Update Firestore
+      const updates = {
+        videoUrl: videoDownloadUrl,
         status: 'monté',
-      })
+      }
+      if (thumbnailUrl) updates.thumbnailUrl = thumbnailUrl
+      await updateItem(contentItemId, updates)
 
-      alert('Vidéo sauvegardée!')
+      setSaved(true)
     } catch (err) {
       console.error('Upload error:', err)
       alert('Erreur lors de la sauvegarde.')
@@ -195,7 +244,7 @@ export default function ExportModal({ onClose }) {
         )}
 
         {/* Export complete */}
-        {exportedUrl && (
+        {exportedUrl && !saved && (
           <div className="space-y-4">
             <div className="rounded-xl overflow-hidden border border-gray-600">
               <video src={exportedUrl} controls className="w-full max-h-48" />
@@ -219,10 +268,27 @@ export default function ExportModal({ onClose }) {
                              hover:bg-sage-500/10 disabled:opacity-40 py-2.5 rounded-xl
                              font-medium transition text-sm"
                 >
-                  {uploading ? 'Sauvegarde...' : 'Sauvegarder dans le hub'}
+                  {uploading ? 'Sauvegarde en cours...' : 'Sauvegarder dans le hub'}
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Saved confirmation */}
+        {saved && (
+          <div className="text-center py-6 space-y-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sage-500/20 mb-2">
+              <span className="text-3xl">&#10003;</span>
+            </div>
+            <p className="text-sm text-gray-200 font-medium">Vidéo sauvegardée dans le hub</p>
+            <button
+              onClick={() => navigate('/idees')}
+              className="w-full bg-sage-500 hover:bg-sage-600 text-white py-2.5 rounded-xl
+                         font-medium transition text-sm"
+            >
+              Retour aux idées
+            </button>
           </div>
         )}
       </div>

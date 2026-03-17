@@ -69,41 +69,43 @@ export default function EditorPage() {
   const handleExportClick = () => setShowExport(true)
 
   return (
-    <div className="fixed inset-0 bg-gray-900 flex flex-col z-30">
-      {/* Toolbar */}
-      <EditorToolbar onExport={handleExportClick} />
+    <div className="fixed inset-0 bg-gray-900 flex flex-col z-30 h-screen overflow-hidden">
+      {/* Toolbar — fixed height */}
+      <div className="h-[50px] flex-shrink-0">
+        <EditorToolbar onExport={handleExportClick} />
+      </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
-        {/* Preview area — capped at 45vh on mobile so tools stay visible */}
-        <div className="flex items-center justify-center p-2 lg:p-4 min-h-0
-                        max-h-[45vh] lg:max-h-none lg:flex-1">
+      {/* Main content — desktop: row, mobile: column */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+        {/* Preview area — fixed max on mobile */}
+        <div className="flex-shrink-0 max-h-[40vh] lg:max-h-none lg:flex-1
+                        flex items-center justify-center p-2 lg:p-4 min-h-0">
           <VideoPreview />
         </div>
 
-        {/* Side panel (desktop: right side, mobile: below preview) */}
+        {/* Side panel (desktop: right, mobile: below preview) */}
         <div className="lg:w-80 bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700
-                        flex flex-col flex-shrink-0 min-h-0 flex-1 lg:flex-none">
-          {/* Panel tabs — always visible, never scrolls */}
-          <div className="flex border-b border-gray-700 flex-shrink-0">
+                        flex flex-col min-h-0 flex-1 lg:flex-none overflow-hidden">
+          {/* Panel tabs — always visible, fixed height */}
+          <div className="h-[52px] flex-shrink-0 flex border-b border-gray-700">
             {PANELS.map(panel => (
               <button
                 key={panel.id}
                 onClick={() => setActivePanel(panel.id)}
-                className={`flex-1 py-2 lg:py-2.5 text-xs font-medium text-center transition ${
+                className={`flex-1 flex flex-col items-center justify-center text-xs font-medium transition ${
                   activePanel === panel.id
                     ? 'text-sage-400 border-b-2 border-sage-400'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
-                <span className="block text-base mb-0.5">{panel.icon}</span>
-                <span className="hidden sm:inline">{panel.label}</span>
+                <span className="text-base leading-none">{panel.icon}</span>
+                <span className="mt-0.5 hidden sm:block">{panel.label}</span>
               </button>
             ))}
           </div>
 
           {/* Active panel content — scrollable */}
-          <div className="overflow-y-auto flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {activePanel === 'trim' && <VideoTrimmer />}
             {activePanel === 'text' && <TextOverlayPanel />}
             {activePanel === 'subtitles' && <SubtitlePanel />}
@@ -112,8 +114,8 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* Timeline — scrollable horizontally */}
-      <div className="flex-shrink-0">
+      {/* Timeline — fixed height */}
+      <div className="h-[80px] flex-shrink-0">
         <Timeline />
       </div>
 
