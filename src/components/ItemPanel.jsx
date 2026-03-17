@@ -31,9 +31,14 @@ const PLATFORM_ICONS = {
 export default function ItemPanel({ item, onClose }) {
   const { updateItem } = useContentItems()
   const [caption, setCaption]             = useState(item.caption || '')
+  const [captionOptions, setCaptionOptions] = useState([])
   const [generatingCaption, setGenerating] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(null)
+  const [uploadedPreview, setUploadedPreview] = useState(null)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
   const [saving, setSaving]               = useState(false)
+  const [publishing, setPublishing]       = useState(false)
+  const [publishError, setPublishError]   = useState(null)
   const fileInputRef = useRef(null)
 
   if (!item) return null
@@ -77,9 +82,32 @@ export default function ItemPanel({ item, onClose }) {
           status: item.status === 'filmé' ? 'monté' : item.status,
         })
         setUploadProgress(null)
+        setUploadedPreview(url)
+        setUploadSuccess(true)
+        setTimeout(() => setUploadSuccess(false), 3000)
       }
     )
   }
+
+  // Publier sur Instagram via Cloud Function
+  const handlePublishInstagram = async () => {
+    setPublishing(true)
+    setPublishError(null)
+    try {
+      const functions = getFunctions()
+      const publishToInstagram = httpsCallable(functions, 'publishToInstagram')
+      await publishToInstagram({ itemId: item.id })
+    } catch (err) {
+      console.error('Instagram publish error:', err)
+      setPublishError(err.message || 'Erreur lors de la publication.')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const canPublishInstagram =
+    item.status === 'prêt' && item.videoUrl && item.caption
+  const isPublishedInstagram = item.publishedDates?.instagram
 
   // Générer une caption via Cloud Function
   const handleGenerateCaption = async () => {
@@ -94,9 +122,7 @@ export default function ItemPanel({ item, onClose }) {
         notes: item.notes || '',
       })
       const { options } = result.data
-      const generated = options.join('\n\n---\n\n')
-      setCaption(generated)
-      await updateItem(item.id, { caption: generated })
+      setCaptionOptions(options)
     } catch (err) {
       console.error('Caption error:', err)
       alert('Erreur lors de la génération.')
@@ -195,15 +221,21 @@ export default function ItemPanel({ item, onClose }) {
           {/* Upload vidéo */}
           <div>
             <p className="text-xs font-medium text-gray-500 mb-2">Vidéo montée</p>
-            {item.videoUrl ? (
-              <div className="rounded-xl overflow-hidden border border-sand-200">
+            {(item.videoUrl || uploadedPreview) ? (
+              <div className={`rounded-xl overflow-hidden border transition-all duration-500 ${
+                uploadSuccess ? 'border-sage-400 ring-2 ring-sage-200' : 'border-sand-200'
+              }`}>
                 <video
-                  src={item.videoUrl}
+                  src={uploadedPreview || item.videoUrl}
                   controls
                   className="w-full max-h-48 bg-black"
                 />
                 <div className="p-2 flex justify-between items-center">
-                  <span className="text-xs text-sage-600 font-medium">✓ Vidéo uploadée</span>
+                  <span className={`text-xs font-medium transition-all ${
+                    uploadSuccess ? 'text-sage-600' : 'text-sage-600'
+                  }`}>
+                    {uploadSuccess ? '🎉 Upload réussi!' : '✓ Vidéo uploadée'}
+                  </span>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="text-xs text-gray-400 hover:text-gray-600"
@@ -266,6 +298,33 @@ export default function ItemPanel({ item, onClose }) {
                 )}
               </button>
             </div>
+
+            {/* Options générées — sélection */}
+            {captionOptions.length > 0 && (
+              <div className="space-y-3 mb-3">
+                {captionOptions.map((opt, i) => (
+                  <div key={i} className="border border-sand-200 rounded-xl overflow-hidden">
+                    <div className="px-3 py-2 bg-sand-50 flex items-center justify-between border-b border-sand-100">
+                      <span className="text-xs font-semibold text-gray-500">Option {i + 1}</span>
+                      <button
+                        onClick={async () => {
+                          setCaption(opt)
+                          setCaptionOptions([])
+                          await updateItem(item.id, { caption: opt })
+                        }}
+                        className="text-xs bg-sage-500 hover:bg-sage-600 text-white
+                                   px-3 py-1 rounded-full font-medium transition"
+                      >
+                        ✓ Choisir
+                      </button>
+                    </div>
+                    <p className="px-3 py-2.5 text-sm text-gray-700 whitespace-pre-line">{opt}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Caption active — éditable */}
             <textarea
               className="w-full border border-sand-200 rounded-xl px-3 py-2.5 text-sm
                          focus:outline-none focus:ring-2 focus:ring-sage-300 resize-none"
@@ -283,6 +342,55 @@ export default function ItemPanel({ item, onClose }) {
               >
                 {saving ? 'Sauvegarde...' : '💾 Sauvegarder la caption'}
               </button>
+            )}
+          </div>
+
+          {/* Publication Instagram */}
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-2">Publication</p>
+
+            {isPublishedInstagram ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-sage-50 border border-sage-200 rounded-xl">
+                <span className="text-sage-600 text-sm font-medium">
+                  Publié sur Instagram
+                </span>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {(item.publishedDates.instagram?.toDate?.() || new Date()).toLocaleDateString('fr-CA', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                </span>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={handlePublishInstagram}
+                  disabled={!canPublishInstagram || publishing}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3
+                             bg-gradient-to-r from-purple-500 to-pink-500
+                             hover:from-purple-600 hover:to-pink-600
+                             disabled:opacity-40 disabled:cursor-not-allowed
+                             text-white text-sm font-medium rounded-xl transition"
+                >
+                  {publishing ? (
+                    <>
+                      <span className="inline-block h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Publication en cours...
+                    </>
+                  ) : (
+                    'Publier sur Instagram'
+                  )}
+                </button>
+
+                {!canPublishInstagram && !publishing && (
+                  <p className="text-xs text-gray-400 mt-1.5 text-center">
+                    Statut « prêt », vidéo et caption requis pour publier
+                  </p>
+                )}
+
+                {publishError && (
+                  <p className="text-xs text-red-500 mt-1.5 text-center">{publishError}</p>
+                )}
+              </>
             )}
           </div>
 
