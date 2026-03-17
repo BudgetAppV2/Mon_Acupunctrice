@@ -56,53 +56,60 @@ export default function ImportModal() {
   // If we're in recording/preview mode
   if (mode && stream) {
     return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Preview */}
-        <div className="flex-1 relative flex items-center justify-center">
-          <video
-            ref={previewRef}
-            autoPlay
-            muted
-            playsInline
-            className={`max-h-full max-w-full ${mode === 'webcam' ? 'scale-x-[-1]' : ''}`}
-          />
+      <div className="fixed inset-0 bg-black z-50">
+        {/* Full-screen video preview */}
+        <video
+          ref={previewRef}
+          autoPlay
+          muted
+          playsInline
+          className={`absolute inset-0 w-full h-full object-cover ${mode === 'webcam' ? 'scale-x-[-1]' : ''}`}
+        />
 
-          {/* Countdown overlay */}
-          {countdown && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-              <span className="text-8xl font-bold text-white animate-pulse">{countdown}</span>
-            </div>
-          )}
-        </div>
+        {/* Countdown overlay */}
+        {countdown && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50">
+            <span className="text-8xl font-bold text-white animate-pulse">{countdown}</span>
+          </div>
+        )}
 
-        {/* Controls */}
-        <div className="bg-gray-900 p-4 flex items-center justify-center gap-4">
-          <button
-            onClick={() => { cleanup(); setMode(null) }}
-            className="text-sm text-gray-400 hover:text-white px-4 py-2 transition"
-          >
-            Annuler
-          </button>
+        {/* Recording indicator */}
+        {recording && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full">
+            <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-white text-sm font-medium">REC</span>
+          </div>
+        )}
 
+        {/* Cancel button — top left, always visible */}
+        <button
+          onClick={() => { cleanup(); setMode(null) }}
+          className="absolute top-6 left-6 z-20 text-sm text-white/80 hover:text-white
+                     bg-black/40 hover:bg-black/60 px-4 py-2 rounded-full transition backdrop-blur-sm"
+        >
+          &larr; Annuler
+        </button>
+
+        {/* Record / Stop button — bottom center, always visible overlay */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20">
           {!recording ? (
             <button
               onClick={handleRecord}
-              className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 border-4 border-white
-                         transition flex items-center justify-center"
+              className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 border-4 border-white
+                         shadow-lg shadow-black/30 transition flex items-center justify-center"
             >
-              <span className="w-6 h-6 rounded-full bg-white" />
+              <span className="w-7 h-7 rounded-full bg-white" />
             </button>
           ) : (
             <button
               onClick={handleStopRecording}
-              className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 border-4 border-white
-                         transition flex items-center justify-center"
+              className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 border-4 border-white
+                         shadow-lg shadow-black/30 transition flex items-center justify-center
+                         animate-pulse"
             >
-              <span className="w-6 h-6 rounded bg-white" />
+              <span className="w-8 h-8 rounded-md bg-white" />
             </button>
           )}
-
-          <div className="w-16" /> {/* Spacer */}
         </div>
       </div>
     )
