@@ -63,7 +63,7 @@ export default function ImportModal() {
           autoPlay
           muted
           playsInline
-          className={`absolute inset-0 w-full h-full object-cover ${mode === 'webcam' ? 'scale-x-[-1]' : ''}`}
+          className={`absolute inset-0 w-full h-full object-contain ${mode === 'webcam' ? 'scale-x-[-1]' : ''}`}
         />
 
         {/* Countdown overlay */}

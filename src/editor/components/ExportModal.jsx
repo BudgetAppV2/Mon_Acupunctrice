@@ -40,6 +40,13 @@ export default function ExportModal({ onClose }) {
   const handleExport = async () => {
     if (!videoFile && !videoUrl) return
 
+    // Guard: reject invalid duration
+    const duration = useEditorStore.getState().videoDuration
+    if (!duration || !isFinite(duration)) {
+      alert('Durée vidéo invalide — impossible d\'exporter. Essaie de réimporter la vidéo.')
+      return
+    }
+
     setExporting(true)
     setExportProgress(0)
 

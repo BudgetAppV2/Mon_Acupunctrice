@@ -69,12 +69,15 @@ const useEditorStore = create((set, get) => ({
     exportedBlob: null,
   }),
 
-  setVideoDimensions: (width, height, duration) => set({
-    videoWidth: width,
-    videoHeight: height,
-    videoDuration: duration,
-    trimEnd: duration,
-  }),
+  setVideoDimensions: (width, height, duration) => {
+    const safeDuration = (duration && isFinite(duration)) ? duration : 0
+    set({
+      videoWidth: width,
+      videoHeight: height,
+      videoDuration: safeDuration,
+      trimEnd: safeDuration,
+    })
+  },
 
   clearVideo: () => set({
     videoFile: null,
@@ -102,6 +105,9 @@ const useEditorStore = create((set, get) => ({
   // ─── Text overlays ─────────────────────────────
   addTextOverlay: () => {
     const { videoDuration, trimStart, trimEnd } = get()
+    const safeEnd = (trimEnd && isFinite(trimEnd)) ? trimEnd
+      : (videoDuration && isFinite(videoDuration)) ? videoDuration
+      : 10 // fallback 10s if duration unknown
     const overlay = {
       id: generateId(),
       text: 'Texte',
@@ -112,7 +118,7 @@ const useEditorStore = create((set, get) => ({
       color: '#FFFFFF',
       backgroundColor: 'transparent',
       startTime: trimStart,
-      endTime: trimEnd || videoDuration,
+      endTime: safeEnd,
     }
     set(s => ({
       textOverlays: [...s.textOverlays, overlay],

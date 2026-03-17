@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import fixWebmDuration from 'fix-webm-duration'
 
 /**
  * Hook for webcam and screen recording via MediaRecorder API.
@@ -9,6 +10,7 @@ export function useMediaRecorder() {
   const [countdown, setCountdown] = useState(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
+  const recordingStartRef = useRef(0)
 
   /**
    * Start webcam stream (preview only, not recording yet)
@@ -68,8 +70,18 @@ export function useMediaRecorder() {
             if (e.data.size > 0) chunksRef.current.push(e.data)
           }
 
-          recorder.onstop = () => {
-            const blob = new Blob(chunksRef.current, { type: mimeType })
+          recorder.onstop = async () => {
+            const rawBlob = new Blob(chunksRef.current, { type: mimeType })
+            const duration = Date.now() - recordingStartRef.current
+
+            // Fix WebM duration metadata (MediaRecorder produces Infinity)
+            let blob
+            try {
+              blob = await fixWebmDuration(rawBlob, duration, { logger: false })
+            } catch {
+              blob = rawBlob
+            }
+
             const file = new File([blob], `recording-${Date.now()}.webm`, { type: mimeType })
             const url = URL.createObjectURL(blob)
             setRecording(false)
@@ -81,6 +93,7 @@ export function useMediaRecorder() {
             reject(e.error || new Error('Recording error'))
           }
 
+          recordingStartRef.current = Date.now()
           recorder.start(1000) // Collect in 1s chunks
           setRecording(true)
         }
