@@ -34,6 +34,51 @@ app.get('/proxy-image', async (req, res) => {
   }
 })
 
+// Proxy for Firebase Storage videos — streaming with range request support
+// HTML5 <video> uses range requests for seeking; we forward them to Firebase
+app.get('/proxy-video', async (req, res) => {
+  const url = req.query.url
+  if (!url || !url.startsWith('https://firebasestorage.googleapis.com/')) {
+    return res.status(400).send('URL invalide')
+  }
+  try {
+    const headers = {}
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range
+    }
+    const response = await fetch(url, { headers })
+    if (!response.ok && response.status !== 206) {
+      return res.status(response.status).send('Fetch failed')
+    }
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'video/mp4')
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.setHeader('Accept-Ranges', 'bytes')
+    if (response.headers.get('content-length')) {
+      res.setHeader('Content-Length', response.headers.get('content-length'))
+    }
+    if (response.headers.get('content-range')) {
+      res.setHeader('Content-Range', response.headers.get('content-range'))
+      res.status(206)
+    }
+    // Stream the response body to the client
+    const reader = response.body.getReader()
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) { res.end(); break }
+        res.write(value)
+      }
+    }
+    pump().catch(err => {
+      console.error('Proxy video stream error:', err)
+      res.end()
+    })
+  } catch (err) {
+    console.error('Proxy video error:', err)
+    res.status(500).send('Proxy error')
+  }
+})
+
 // Serve static files from Vite build output
 app.use(express.static(path.join(__dirname, 'dist')))
 

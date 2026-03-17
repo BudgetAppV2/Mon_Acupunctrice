@@ -40,20 +40,12 @@ export default function EditorPage() {
     const item = items.find(i => i.id === id)
     if (item) {
       setContentItem(id, item)
-      // If item already has a video, fetch blob and load into store
+      // If item already has a video, use proxied URL for playback
+      // Direct fetch to Firebase Storage is blocked by COEP/CORS.
+      // The proxy streams the video with correct headers for HTML5 <video>.
       if (item.videoUrl && !videoUrl) {
-        ;(async () => {
-          try {
-            const response = await fetch(item.videoUrl)
-            const blob = await response.blob()
-            const localUrl = URL.createObjectURL(blob)
-            loadVideo(blob, localUrl)
-          } catch (err) {
-            console.error('Failed to fetch video from storage:', err)
-            // Fallback: use remote URL directly (preview only, export may fail)
-            loadVideo(null, item.videoUrl)
-          }
-        })()
+        const proxiedUrl = `/proxy-video?url=${encodeURIComponent(item.videoUrl)}`
+        loadVideo(null, proxiedUrl)
       }
     }
   }, [id, items, setContentItem, loadVideo, videoUrl])
