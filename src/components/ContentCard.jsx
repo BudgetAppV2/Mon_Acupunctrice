@@ -59,9 +59,9 @@ export default function ContentCard({ item, compact = false, onSchedule, onOpen,
   return (
     <div onClick={() => onOpen && onOpen(item)} className={`bg-white rounded-xl border border-sand-200 shadow-sm hover:shadow-md transition group overflow-hidden ${onOpen ? "cursor-pointer" : ""}`}>
       {/* Thumbnail */}
-      {item.thumbnailUrl && (
+      {thumbUrl && (
         <div className="aspect-[9/16] max-h-40 overflow-hidden">
-          <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
         </div>
       )}
 
