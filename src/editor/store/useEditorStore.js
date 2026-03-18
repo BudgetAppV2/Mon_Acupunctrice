@@ -30,7 +30,7 @@ const useEditorStore = create((set, get) => ({
   subtitlesVisible: true,
   generatingSubtitles: false,
   subtitleStyle: 'classic', // 'classic' | 'tiktok' | 'karaoke'
-  subtitleConfig: { x: 0.5, y: 0.85, fontSize: 28 },
+  subtitleConfig: { x: 0.5, y: 0.85, fontSize: 52 },
 
   // ─── Audio track ───────────────────────────────
   audioFile: null,
@@ -201,7 +201,7 @@ const useEditorStore = create((set, get) => ({
     subtitlesVisible: true,
     generatingSubtitles: false,
     subtitleStyle: 'classic',
-    subtitleConfig: { x: 0.5, y: 0.85, fontSize: 28 },
+    subtitleConfig: { x: 0.5, y: 0.85, fontSize: 52 },
     audioFile: null,
     audioUrl: null,
     audioVolume: 0.5,

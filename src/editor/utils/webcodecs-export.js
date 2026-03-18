@@ -9,7 +9,7 @@
  * 4. Output muxes video + audio → MP4 (BufferTarget)
  */
 import { Output, BufferTarget, Mp4OutputFormat, CanvasSource, AudioBufferSource } from 'mediabunny'
-import { SUBTITLE_STYLES, generateTikTokPages, getActivePageAndToken, drawAnimatedSubtitle } from './subtitleStyles.js'
+import { SUBTITLE_STYLES, drawSubtitleOnCanvas } from './subtitleStyles.js'
 
 /**
  * Check if WebCodecs is available and supports H.264 encoding
@@ -41,6 +41,7 @@ export async function isWebCodecsSupported() {
  * @param {Array} params.textOverlays - Text overlay objects
  * @param {Array} params.subtitles - Subtitle objects
  * @param {string} params.subtitleStyle - Style preset key ('classic'|'tiktok'|'karaoke')
+ * @param {Object} params.subtitleConfig - { x, y, fontSize } position/size config
  * @param {Blob|null} params.audioFile - Optional audio file to mix
  * @param {number} params.audioVolume - Audio track volume (0-1)
  * @param {number} params.originalVolume - Original audio volume (0-1)
@@ -55,6 +56,7 @@ export async function exportWithWebCodecs({
   textOverlays = [],
   subtitles = [],
   subtitleStyle = 'classic',
+  subtitleConfig = {},
   audioFile = null,
   audioVolume = 0.5,
   originalVolume = 1,
@@ -116,9 +118,8 @@ export async function exportWithWebCodecs({
   output.addAudioTrack(audioSrc)
   await output.start()
 
-  // 4. Pre-compute TikTok pages for animated subtitles
+  // 4. Style config
   const styleConfig = SUBTITLE_STYLES[subtitleStyle] || SUBTITLE_STYLES.classic
-  const tikTokPages = styleConfig.animated ? generateTikTokPages(subtitles) : []
 
   // 5. Extract and encode frames
   for (let i = 0; i < totalFrames; i++) {
@@ -159,28 +160,17 @@ export async function exportWithWebCodecs({
       }
     }
 
-    // Draw subtitles — style-aware
-    if (styleConfig.animated && tikTokPages.length > 0) {
-      const { page, activeTokenIndex } = getActivePageAndToken(tikTokPages, time)
-      if (page) {
-        drawAnimatedSubtitle(ctx, styleConfig, page, activeTokenIndex, outputSize)
-      }
-    } else {
-      const currentSub = subtitles.find(s => time >= s.startTime && time <= s.endTime)
-      if (currentSub) {
-        const sc = outputSize.width / 1080
-        const subFontSize = (styleConfig.fontSize || 28) * sc
-        ctx.font = `${styleConfig.fontWeight || 'bold'} ${subFontSize}px ${styleConfig.fontFamily || 'Arial'}`
-        ctx.textAlign = 'center'
-        ctx.fillStyle = styleConfig.color || '#FFFFFF'
-        if (styleConfig.strokeWidth > 0) {
-          ctx.strokeStyle = styleConfig.strokeColor || '#000000'
-          ctx.lineWidth = (styleConfig.strokeWidth || 3) * sc
-          ctx.strokeText(currentSub.text, outputSize.width / 2, outputSize.height * 0.88)
+    // Draw subtitles — unified rendering for both static and animated
+    const currentSub = subtitles.find(s => time >= s.startTime && time <= s.endTime)
+    if (currentSub) {
+      // Find active word index for animated styles
+      let activeWordIdx = -1
+      if (styleConfig.animated && currentSub.words?.length) {
+        for (let w = currentSub.words.length - 1; w >= 0; w--) {
+          if (time >= currentSub.words[w].start) { activeWordIdx = w; break }
         }
-        ctx.fillText(currentSub.text, outputSize.width / 2, outputSize.height * 0.88)
-        ctx.textAlign = 'start'
       }
+      drawSubtitleOnCanvas(ctx, styleConfig, currentSub, activeWordIdx, outputSize, subtitleConfig)
     }
 
     // Capture canvas and encode via CanvasSource

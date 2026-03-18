@@ -4,7 +4,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { storage } from '../../firebase.js'
 import useEditorStore from '../store/useEditorStore.js'
 import { formatTime } from '../utils/timeUtils.js'
-import { SUBTITLE_STYLES } from '../utils/subtitleStyles.js'
+import { SUBTITLE_STYLES, groupSubtitleWords } from '../utils/subtitleStyles.js'
 
 export default function SubtitlePanel() {
   const subtitles = useEditorStore(s => s.subtitles)
@@ -65,7 +65,9 @@ export default function SubtitlePanel() {
       })
 
       if (result.data?.subtitles) {
-        setSubtitles(result.data.subtitles)
+        // CF returns individual words — group them dynamically
+        const grouped = groupSubtitleWords(result.data.subtitles)
+        setSubtitles(grouped)
       }
 
       if (needsCleanup) {
@@ -164,7 +166,7 @@ export default function SubtitlePanel() {
             <input
               type="range"
               min={16}
-              max={48}
+              max={72}
               step={1}
               value={subtitleConfig.fontSize}
               onInput={(e) => setSubtitleConfig({ fontSize: parseInt(e.target.value) })}

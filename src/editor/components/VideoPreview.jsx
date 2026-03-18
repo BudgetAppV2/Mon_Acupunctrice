@@ -74,6 +74,11 @@ export default function VideoPreview() {
     ? subtitles.find(s => currentTime >= s.startTime && currentTime <= s.endTime)
     : null
 
+  // Subtitle position from config
+  const subX = (subtitleConfig?.x ?? 0.5) * previewWidth
+  const subY = (subtitleConfig?.y ?? 0.85) * previewHeight
+  const subFontSize = (subtitleConfig?.fontSize ?? styleConfig.fontSize) * (previewWidth / 1080)
+
   // For animated styles, find which word within the group is active
   const activeWordIndex = useMemo(() => {
     if (!currentSubtitle?.words?.length || !styleConfig.animated) return -1
@@ -83,10 +88,28 @@ export default function VideoPreview() {
     return -1
   }, [currentSubtitle, currentTime, styleConfig.animated])
 
-  // Subtitle position from config
-  const subX = (subtitleConfig?.x ?? 0.5) * previewWidth
-  const subY = (subtitleConfig?.y ?? 0.85) * previewHeight
-  const subFontSize = (subtitleConfig?.fontSize ?? styleConfig.fontSize) * (previewWidth / 1080)
+  // Measure word positions using an offscreen canvas for accurate placement
+  const wordPositions = useMemo(() => {
+    if (!currentSubtitle?.words?.length || !styleConfig.animated) return null
+    const font = `${styleConfig.fontWeight || 'bold'} ${subFontSize}px ${styleConfig.fontFamily || 'Arial'}`
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    ctx.font = font
+
+    const words = currentSubtitle.words
+    const measurements = words.map((w, i) => {
+      const text = i < words.length - 1 ? w.word + ' ' : w.word
+      return { text, width: ctx.measureText(text).width }
+    })
+    const totalWidth = measurements.reduce((sum, m) => sum + m.width, 0)
+    const startX = (previewWidth - totalWidth) / 2
+    let x = startX
+    return measurements.map(m => {
+      const pos = { x, width: m.width, text: m.text }
+      x += m.width
+      return pos
+    })
+  }, [currentSubtitle, styleConfig, subFontSize, previewWidth])
 
   return (
     <div className="relative flex flex-col items-center">
@@ -194,57 +217,41 @@ export default function VideoPreview() {
                     cornerRadius={6}
                   />
                 )}
-                {/* Render each word in the group */}
-                {(() => {
-                  const words = currentSubtitle.words || []
-                  if (!words.length) {
-                    // No word-level data — render full text
-                    return (
-                      <Text
-                        text={currentSubtitle.text}
-                        x={previewWidth * 0.05}
-                        y={0}
-                        width={previewWidth * 0.9}
-                        fontSize={subFontSize}
-                        fontFamily={styleConfig.fontFamily}
-                        fontStyle={styleConfig.fontWeight}
-                        fill={styleConfig.color}
-                        align="center"
-                        listening={false}
-                      />
-                    )
-                  }
-
-                  // Approximate char width for centering
-                  const charWidth = subFontSize * 0.55
-                  const fullText = words.map(w => w.word).join(' ')
-                  const totalWidth = fullText.length * charWidth
-                  let x = (previewWidth - totalWidth) / 2
+                {/* Render words individually with measured positions */}
+                {wordPositions && wordPositions.map((pos, i) => {
+                  const isActive = i <= activeWordIndex
                   const scale = previewWidth / 1080
-
-                  return words.map((w, i) => {
-                    const isActive = i <= activeWordIndex
-                    const wordText = i < words.length - 1 ? w.word + ' ' : w.word
-                    const wordWidth = wordText.length * charWidth
-                    const node = (
-                      <Text
-                        key={i}
-                        text={wordText}
-                        x={x}
-                        y={0}
-                        fontSize={subFontSize}
-                        fontFamily={styleConfig.fontFamily}
-                        fontStyle={styleConfig.fontWeight}
-                        fill={isActive ? styleConfig.activeColor : styleConfig.color}
-                        stroke={styleConfig.strokeWidth > 0 ? styleConfig.strokeColor : undefined}
-                        strokeWidth={styleConfig.strokeWidth > 0 ? styleConfig.strokeWidth * scale : 0}
-                        listening={false}
-                      />
-                    )
-                    x += wordWidth
-                    return node
-                  })
-                })()}
+                  return (
+                    <Text
+                      key={i}
+                      text={pos.text}
+                      x={pos.x}
+                      y={0}
+                      fontSize={subFontSize}
+                      fontFamily={styleConfig.fontFamily || 'Arial'}
+                      fontStyle={styleConfig.fontWeight || 'bold'}
+                      fill={isActive ? (styleConfig.activeColor || '#FFE135') : (styleConfig.color || '#FFFFFF')}
+                      stroke={styleConfig.strokeWidth > 0 ? (styleConfig.strokeColor || '#000000') : undefined}
+                      strokeWidth={styleConfig.strokeWidth > 0 ? styleConfig.strokeWidth * scale : 0}
+                      listening={false}
+                    />
+                  )
+                })}
+                {/* Fallback: no word data — render full text */}
+                {!wordPositions && (
+                  <Text
+                    text={currentSubtitle.text}
+                    x={previewWidth * 0.05}
+                    y={0}
+                    width={previewWidth * 0.9}
+                    fontSize={subFontSize}
+                    fontFamily={styleConfig.fontFamily || 'Arial'}
+                    fontStyle={styleConfig.fontWeight || 'bold'}
+                    fill={styleConfig.color || '#FFFFFF'}
+                    align="center"
+                    listening={false}
+                  />
+                )}
               </Group>
             )}
           </Layer>

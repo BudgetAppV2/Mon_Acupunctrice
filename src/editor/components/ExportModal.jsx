@@ -44,6 +44,7 @@ export default function ExportModal({ onClose }) {
   const textOverlays = useEditorStore(s => s.textOverlays)
   const subtitles = useEditorStore(s => s.subtitles)
   const subtitleStyle = useEditorStore(s => s.subtitleStyle)
+  const subtitleConfig = useEditorStore(s => s.subtitleConfig)
   const contentItemId = useEditorStore(s => s.contentItemId)
   const isExporting = useEditorStore(s => s.isExporting)
   const exportProgress = useEditorStore(s => s.exportProgress)
@@ -76,6 +77,7 @@ export default function ExportModal({ onClose }) {
           textOverlays,
           subtitles,
           subtitleStyle,
+          subtitleConfig,
           audioFile,
           audioVolume,
           originalVolume: originalAudioVolume,

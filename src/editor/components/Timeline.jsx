@@ -22,8 +22,8 @@ export default function Timeline() {
 
   return (
     <div className="h-[80px] flex flex-col bg-gray-900 border-t border-gray-700 overflow-hidden">
-      {/* Time ruler — 20px */}
-      <div className="h-5 flex-shrink-0 px-4 flex items-center gap-2">
+      {/* Time ruler — 20px, no vertical padding */}
+      <div className="h-5 flex-shrink-0 px-4 flex items-center gap-2" style={{ margin: 0, padding: '0 16px' }}>
         <span className="text-xs text-gray-500 font-mono w-12">{formatTime(currentTime)}</span>
         <div className="flex-1 h-px bg-gray-700" />
         <span className="text-xs text-gray-500 font-mono w-12 text-right">{formatTime(duration)}</span>
@@ -85,8 +85,8 @@ export default function Timeline() {
         )}
       </div>
 
-      {/* Slider seek — 26px */}
-      <div className="h-[26px] flex-shrink-0 px-4 flex items-center bg-gray-800">
+      {/* Slider seek — 22px */}
+      <div className="h-[22px] flex-shrink-0 px-4 flex items-center bg-gray-800" style={{ margin: 0, padding: '0 16px' }}>
         <input
           type="range"
           min={0}
@@ -96,6 +96,7 @@ export default function Timeline() {
           onInput={(e) => seekTo(parseFloat(e.target.value))}
           onChange={(e) => seekTo(parseFloat(e.target.value))}
           className="w-full cursor-pointer accent-white"
+          style={{ margin: 0, padding: 0 }}
         />
       </div>
     </div>

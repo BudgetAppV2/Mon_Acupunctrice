@@ -54,83 +54,61 @@ export const SUBTITLE_STYLES = {
 }
 
 /**
- * Convert our subtitle format to @remotion/captions Caption[] format
- * Our subtitles: { id, text, startTime (seconds), endTime (seconds) }
- * Remotion expects: { text, startMs, endMs, timestampMs, confidence }
+ * Group individual word subtitles into natural speech-pause groups
+ * using @remotion/captions for TikTok-style display.
+ *
+ * @param {Array} wordSubtitles - Individual word subtitles from CF: { id, text, startTime, endTime }
+ * @param {number} combineMs - Max gap between words to combine (default 1200ms)
+ * @returns {Array} Grouped subtitles: { id, text, startTime, endTime, words[] }
  */
-function toRemotionCaptions(subtitles) {
-  return subtitles.map(sub => ({
-    text: sub.text,
-    startMs: Math.round(sub.startTime * 1000),
-    endMs: Math.round(sub.endTime * 1000),
-    timestampMs: Math.round(sub.startTime * 1000),
-    confidence: 1,
+export function groupSubtitleWords(wordSubtitles, combineMs = 1200) {
+  if (!wordSubtitles.length) return []
+
+  // Convert to @remotion/captions format (text needs leading space per docs)
+  const captions = wordSubtitles.map(s => ({
+    text: ' ' + s.text,
+    startMs: Math.round(s.startTime * 1000),
+    endMs: Math.round(s.endTime * 1000),
+    timestampMs: Math.round(s.startTime * 1000),
+    confidence: null,
   }))
-}
 
-/**
- * Generate TikTok-style pages from our subtitles.
- * Each page has .tokens[] with individual word timing.
- *
- * @param {Array} subtitles - Our subtitle objects
- * @returns {Array<TikTokPage>} Pages with .text, .startMs, .durationMs, .tokens[]
- */
-export function generateTikTokPages(subtitles) {
-  if (!subtitles.length) return []
-
-  const remotionCaptions = toRemotionCaptions(subtitles)
   const { pages } = createTikTokStyleCaptions({
-    captions: remotionCaptions,
-    combineTokensWithinMilliseconds: 800,
+    captions,
+    combineTokensWithinMilliseconds: combineMs,
   })
-  return pages
-}
 
-/**
- * For a given time (seconds), find the current TikTok page and active token
- *
- * @param {Array} pages - TikTok pages from generateTikTokPages()
- * @param {number} timeSeconds - Current playback time in seconds
- * @returns {{ page: TikTokPage|null, activeTokenIndex: number }} Current page and active token index
- */
-export function getActivePageAndToken(pages, timeSeconds) {
-  const timeMs = timeSeconds * 1000
-
-  for (const page of pages) {
-    const pageEnd = page.startMs + page.durationMs
-    if (timeMs >= page.startMs && timeMs < pageEnd) {
-      // Find active token
-      let activeTokenIndex = -1
-      for (let i = 0; i < page.tokens.length; i++) {
-        if (timeMs >= page.tokens[i].fromMs && timeMs < page.tokens[i].toMs) {
-          activeTokenIndex = i
-          break
-        }
-        // If between tokens, highlight the last token that has passed
-        if (timeMs >= page.tokens[i].fromMs) {
-          activeTokenIndex = i
-        }
-      }
-      return { page, activeTokenIndex }
+  return pages.map((page, i) => {
+    const words = page.tokens.map(token => ({
+      word: token.text.trim(),
+      start: token.fromMs / 1000,
+      end: token.toMs / 1000,
+    }))
+    return {
+      id: `group_${i}`,
+      text: words.map(w => w.word).join(' '),
+      startTime: page.startMs / 1000,
+      endTime: (page.startMs + page.durationMs) / 1000,
+      words,
     }
-  }
-  return { page: null, activeTokenIndex: -1 }
+  })
 }
 
 /**
- * Draw animated subtitle on a 2D canvas context (for WebCodecs export)
+ * Draw subtitle on a 2D canvas context (for WebCodecs/FFmpeg export)
  *
  * @param {CanvasRenderingContext2D} ctx
  * @param {Object} style - SUBTITLE_STYLES[key]
- * @param {Object} page - TikTokPage
- * @param {number} activeTokenIndex - Currently active token
+ * @param {Object} subtitle - Grouped subtitle { text, words[] }
+ * @param {number} activeWordIndex - Currently active word index
  * @param {Object} outputSize - { width, height }
+ * @param {Object} config - { x, y, fontSize } from subtitleConfig
  */
-export function drawAnimatedSubtitle(ctx, style, page, activeTokenIndex, outputSize) {
+export function drawSubtitleOnCanvas(ctx, style, subtitle, activeWordIndex, outputSize, config = {}) {
   const scale = outputSize.width / 1080
-  const fontSize = style.fontSize * scale
-  const centerX = outputSize.width / 2
-  const baseY = outputSize.height * 0.85
+  const fontSize = (config.fontSize || style.fontSize) * scale
+  const centerX = outputSize.width * (config.x || 0.5)
+  const baseY = outputSize.height * (config.y || 0.85)
 
   ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`
   ctx.textAlign = 'center'
@@ -138,55 +116,57 @@ export function drawAnimatedSubtitle(ctx, style, page, activeTokenIndex, outputS
 
   // Draw background if style has one
   if (style.backgroundColor) {
-    const metrics = ctx.measureText(page.text)
+    const metrics = ctx.measureText(subtitle.text)
     const padX = 16 * scale
     const padY = 8 * scale
-    const bgX = centerX - metrics.width / 2 - padX
-    const bgY = baseY - fontSize / 2 - padY
-    const bgW = metrics.width + padX * 2
-    const bgH = fontSize + padY * 2
     ctx.fillStyle = style.backgroundColor
     ctx.beginPath()
-    ctx.roundRect(bgX, bgY, bgW, bgH, 8 * scale)
+    ctx.roundRect(
+      centerX - metrics.width / 2 - padX,
+      baseY - fontSize / 2 - padY,
+      metrics.width + padX * 2,
+      fontSize + padY * 2,
+      8 * scale
+    )
     ctx.fill()
   }
 
-  if (!style.animated) {
+  if (!style.animated || !subtitle.words?.length) {
     // Static: draw full text
     if (style.strokeWidth > 0) {
       ctx.strokeStyle = style.strokeColor
       ctx.lineWidth = style.strokeWidth * scale
-      ctx.strokeText(page.text, centerX, baseY)
+      ctx.strokeText(subtitle.text, centerX, baseY)
     }
     ctx.fillStyle = style.color
-    ctx.fillText(page.text, centerX, baseY)
+    ctx.fillText(subtitle.text, centerX, baseY)
   } else {
     // Animated: draw word by word with active highlight
-    // First measure total width to center the line
-    const totalWidth = ctx.measureText(page.text).width
+    const totalWidth = ctx.measureText(subtitle.text).width
     let x = centerX - totalWidth / 2
 
-    for (let i = 0; i < page.tokens.length; i++) {
-      const token = page.tokens[i]
-      const isActive = i <= activeTokenIndex
-      const tokenWidth = ctx.measureText(token.text).width
+    for (let i = 0; i < subtitle.words.length; i++) {
+      const wordText = i < subtitle.words.length - 1
+        ? subtitle.words[i].word + ' '
+        : subtitle.words[i].word
+      const isActive = i <= activeWordIndex
+      const wordWidth = ctx.measureText(wordText).width
 
       if (style.strokeWidth > 0) {
         ctx.strokeStyle = style.strokeColor
         ctx.lineWidth = style.strokeWidth * scale
         ctx.textAlign = 'left'
-        ctx.strokeText(token.text, x, baseY)
+        ctx.strokeText(wordText, x, baseY)
       }
 
       ctx.fillStyle = isActive ? style.activeColor : style.color
       ctx.textAlign = 'left'
-      ctx.fillText(token.text, x, baseY)
+      ctx.fillText(wordText, x, baseY)
 
-      x += tokenWidth
+      x += wordWidth
     }
   }
 
-  // Reset alignment
   ctx.textAlign = 'start'
   ctx.textBaseline = 'alphabetic'
 }
