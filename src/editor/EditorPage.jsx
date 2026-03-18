@@ -117,8 +117,8 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* Timeline — fixed height */}
-      <div className="h-[80px] flex-shrink-0">
+      {/* Timeline — fixed height (self-contained 80px) */}
+      <div className="flex-shrink-0">
         <Timeline />
       </div>
 

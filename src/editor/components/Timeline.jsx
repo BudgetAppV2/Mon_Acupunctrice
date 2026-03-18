@@ -21,17 +21,17 @@ export default function Timeline() {
   const playheadPct = (currentTime / duration) * 100
 
   return (
-    <div className="bg-gray-900 border-t border-gray-700">
-      {/* Time ruler */}
-      <div className="px-4 pt-2 flex items-center gap-2">
+    <div className="h-[80px] flex flex-col bg-gray-900 border-t border-gray-700 overflow-hidden">
+      {/* Time ruler — 20px */}
+      <div className="h-5 flex-shrink-0 px-4 flex items-center gap-2">
         <span className="text-xs text-gray-500 font-mono w-12">{formatTime(currentTime)}</span>
         <div className="flex-1 h-px bg-gray-700" />
         <span className="text-xs text-gray-500 font-mono w-12 text-right">{formatTime(duration)}</span>
       </div>
 
-      {/* Tracks container */}
+      {/* Tracks — fills remaining space above slider */}
       <div
-        className="relative px-4 pb-1 pt-1 select-none"
+        className="flex-1 min-h-0 px-4 relative overflow-hidden select-none"
         style={{ minWidth: `${100 * timelineZoom}%` }}
       >
         {/* Playhead */}
@@ -42,7 +42,6 @@ export default function Timeline() {
           <div className="w-3 h-3 bg-white rounded-full -ml-[5px] -mt-1" />
         </div>
 
-        {/* Video track */}
         <TimelineTrack
           label="Vidéo"
           color="bg-sage-500"
@@ -50,7 +49,6 @@ export default function Timeline() {
           duration={duration}
         />
 
-        {/* Audio track (if audio imported) */}
         {audioUrl && (
           <TimelineTrack
             label="Audio"
@@ -60,7 +58,6 @@ export default function Timeline() {
           />
         )}
 
-        {/* Subtitle track */}
         {subtitles.length > 0 && (
           <TimelineTrack
             label="Subs"
@@ -74,7 +71,6 @@ export default function Timeline() {
           />
         )}
 
-        {/* Text overlay track */}
         {textOverlays.length > 0 && (
           <TimelineTrack
             label="Texte"
@@ -89,8 +85,8 @@ export default function Timeline() {
         )}
       </div>
 
-      {/* Slider seek — completely separate from tracks */}
-      <div className="px-4 py-2 bg-gray-800">
+      {/* Slider seek — 26px */}
+      <div className="h-[26px] flex-shrink-0 px-4 flex items-center bg-gray-800">
         <input
           type="range"
           min={0}
