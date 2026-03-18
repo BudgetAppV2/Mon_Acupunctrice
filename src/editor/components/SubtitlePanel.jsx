@@ -61,8 +61,8 @@ export default function SubtitlePanel() {
       const functions = getFunctions()
       const transcribeAudio = httpsCallable(functions, 'transcribeAudio')
       const result = await transcribeAudio({
-        audioUrl: '', // Not used by CF — it reads from storagePath
         storagePath,
+        cleanup: needsCleanup, // Only delete temp uploads, not original videos
       })
 
       if (result.data?.subtitles) {

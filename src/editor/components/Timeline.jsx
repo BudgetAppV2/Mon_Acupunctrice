@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react'
+import { useRef } from 'react'
 import useEditorStore from '../store/useEditorStore.js'
 import { useVideoPlayer } from '../hooks/useVideoPlayer.js'
 import { formatTime, clamp } from '../utils/timeUtils.js'
@@ -23,15 +23,6 @@ export default function Timeline() {
   const duration = trimEnd || videoDuration
   const playheadPct = (currentTime / duration) * 100
 
-  // Click to seek
-  const handleClick = (e) => {
-    if (!trackRef.current) return
-    const rect = trackRef.current.getBoundingClientRect()
-    const ratio = clamp((e.clientX - rect.left) / rect.width, 0, 1)
-    const time = ratio * duration
-    seekTo(clamp(time, trimStart, trimEnd))
-  }
-
   return (
     <div className="bg-gray-900 border-t border-gray-700">
       {/* Time ruler */}
@@ -44,26 +35,13 @@ export default function Timeline() {
       {/* Tracks container */}
       <div
         ref={trackRef}
-        className="relative px-4 pb-3 pt-1 cursor-pointer select-none"
-        onClick={handleClick}
+        className="relative px-4 pb-1 pt-1 select-none"
         style={{ minWidth: `${100 * timelineZoom}%` }}
       >
-        {/* Transparent range slider for drag & touch seeking */}
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={0.01}
-          value={currentTime}
-          onChange={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd))}
-          className="absolute inset-0 w-full opacity-0 cursor-pointer z-20"
-          style={{ height: '100%', margin: 0, padding: '0 16px' }}
-        />
-
         {/* Playhead */}
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-white z-10 pointer-events-none"
-          style={{ left: `calc(${playheadPct}% + 16px)` }}
+          style={{ left: `${playheadPct}%` }}
         >
           <div className="w-3 h-3 bg-white rounded-full -ml-[5px] -mt-1" />
         </div>
@@ -113,6 +91,27 @@ export default function Timeline() {
             duration={duration}
           />
         )}
+      </div>
+
+      {/* Visible seek slider */}
+      <div className="px-4 pb-3">
+        <input
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={0.01}
+          value={currentTime}
+          onChange={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd))}
+          className="w-full h-1.5 cursor-pointer accent-white
+                     bg-gray-700 rounded-full appearance-none
+                     [&::-webkit-slider-thumb]:appearance-none
+                     [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+                     [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white
+                     [&::-webkit-slider-thumb]:cursor-pointer
+                     [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3
+                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white
+                     [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+        />
       </div>
     </div>
   )
