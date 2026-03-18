@@ -1,7 +1,12 @@
+import { useRef, useEffect, useState } from 'react'
 import useEditorStore from '../store/useEditorStore.js'
 import { useVideoPlayer } from '../hooks/useVideoPlayer.js'
 import { formatTime } from '../utils/timeUtils.js'
 import TimelineTrack from './TimelineTrack.jsx'
+
+const RULER_H = 20
+const SLIDER_H = 32
+const TOTAL_H = 80
 
 export default function Timeline() {
   const videoDuration = useEditorStore(s => s.videoDuration)
@@ -14,6 +19,22 @@ export default function Timeline() {
   const timelineZoom = useEditorStore(s => s.timelineZoom)
 
   const { seekTo } = useVideoPlayer()
+  const containerRef = useRef(null)
+  const [tracksH, setTracksH] = useState(TOTAL_H - RULER_H - SLIDER_H)
+
+  // Measure and adapt tracks height on resize
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const measure = () => {
+      const h = el.offsetHeight
+      setTracksH(Math.max(0, h - RULER_H - SLIDER_H))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   if (!videoDuration) return null
 
@@ -21,18 +42,29 @@ export default function Timeline() {
   const playheadPct = (currentTime / duration) * 100
 
   return (
-    <div className="h-[80px] flex flex-col bg-gray-900 border-t border-gray-700 overflow-hidden">
-      {/* Time ruler — 20px, no vertical padding */}
-      <div className="h-5 flex-shrink-0 px-4 flex items-center gap-2" style={{ margin: 0, padding: '0 16px' }}>
+    <div
+      ref={containerRef}
+      className="bg-gray-900 border-t border-gray-700"
+      style={{ height: TOTAL_H, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    >
+      {/* Time ruler */}
+      <div
+        className="flex-shrink-0 px-4 flex items-center gap-2"
+        style={{ height: RULER_H }}
+      >
         <span className="text-xs text-gray-500 font-mono w-12">{formatTime(currentTime)}</span>
         <div className="flex-1 h-px bg-gray-700" />
         <span className="text-xs text-gray-500 font-mono w-12 text-right">{formatTime(duration)}</span>
       </div>
 
-      {/* Tracks — fills remaining space above slider */}
+      {/* Tracks */}
       <div
-        className="flex-1 min-h-0 px-4 relative overflow-hidden select-none"
-        style={{ minWidth: `${100 * timelineZoom}%` }}
+        className="px-4 relative select-none"
+        style={{
+          height: tracksH,
+          overflow: 'hidden',
+          minWidth: `${100 * timelineZoom}%`,
+        }}
       >
         {/* Playhead */}
         <div
@@ -85,8 +117,11 @@ export default function Timeline() {
         )}
       </div>
 
-      {/* Slider seek — 22px */}
-      <div className="h-[22px] flex-shrink-0 px-4 flex items-center bg-gray-800" style={{ margin: 0, padding: '0 16px' }}>
+      {/* Slider seek */}
+      <div
+        className="flex-shrink-0 px-4 flex items-center bg-gray-800"
+        style={{ height: SLIDER_H }}
+      >
         <input
           type="range"
           min={0}
@@ -96,7 +131,7 @@ export default function Timeline() {
           onInput={(e) => seekTo(parseFloat(e.target.value))}
           onChange={(e) => seekTo(parseFloat(e.target.value))}
           className="w-full cursor-pointer accent-white"
-          style={{ margin: 0, padding: 0 }}
+          style={{ margin: 0, padding: 0, height: 20 }}
         />
       </div>
     </div>
