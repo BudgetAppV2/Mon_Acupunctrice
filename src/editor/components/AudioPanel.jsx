@@ -27,6 +27,7 @@ export default function AudioPanel() {
   const setOriginalAudioVolume = useEditorStore(s => s.setOriginalAudioVolume)
 
   const [activeTab, setActiveTab] = useState('library')
+  const [importing, setImporting] = useState(false)
   const fileInputRef = useRef(null)
   const waveformRef = useRef(null)
   const wavesurferRef = useRef(null)
@@ -49,11 +50,17 @@ export default function AudioPanel() {
         responsive: true,
       })
       ws.load(audioUrl)
+      ws.setVolume(audioVolume)
       wavesurferRef.current = ws
     }
     initWaveSurfer()
     return () => { if (ws) ws.destroy() }
   }, [audioUrl])
+
+  // Sync audioVolume slider with WaveSurfer
+  useEffect(() => {
+    if (wavesurferRef.current) wavesurferRef.current.setVolume(audioVolume)
+  }, [audioVolume])
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0]
@@ -71,14 +78,18 @@ export default function AudioPanel() {
   }
 
   const handleImportFromUrl = async (streamUrl) => {
+    setImporting(true)
     try {
       const response = await fetch(streamUrl)
+      if (!response.ok) throw new Error(`Fetch failed: ${response.status}`)
       const blob = await response.blob()
-      const file = new File([blob], 'music.mp3', { type: 'audio/mpeg' })
+      const file = new File([blob], 'music.mp3', { type: blob.type || 'audio/mpeg' })
       const url = URL.createObjectURL(blob)
       setAudio(file, url)
     } catch (err) {
       console.error('Failed to import audio from URL:', err)
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -141,8 +152,17 @@ export default function AudioPanel() {
         </div>
       )}
 
+      {/* Import loading state */}
+      {importing && (
+        <div className="text-center py-4 space-y-2">
+          <div className="inline-block w-5 h-5 border-2 border-sage-400/30 border-t-sage-400
+                          rounded-full animate-spin" />
+          <p className="text-xs text-gray-400">Importation en cours...</p>
+        </div>
+      )}
+
       {/* Tabs — only show when no audio imported yet */}
-      {!audioUrl && (
+      {!audioUrl && !importing && (
         <>
           <div className="flex rounded-lg bg-gray-700/50 p-0.5">
             {AUDIO_TABS.map(tab => (

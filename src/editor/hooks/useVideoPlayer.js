@@ -12,8 +12,14 @@ export function useVideoPlayer() {
   const isPlaying = useEditorStore(s => s.isPlaying)
   const trimStart = useEditorStore(s => s.trimStart)
   const trimEnd = useEditorStore(s => s.trimEnd)
+  const originalAudioVolume = useEditorStore(s => s.originalAudioVolume)
   const setCurrentTime = useEditorStore(s => s.setCurrentTime)
   const pause = useEditorStore(s => s.pause)
+
+  // Sync volume with store
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.volume = originalAudioVolume
+  }, [originalAudioVolume])
 
   // Sync play/pause with store
   useEffect(() => {
