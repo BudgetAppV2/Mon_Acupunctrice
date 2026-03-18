@@ -101,16 +101,12 @@ export default function Timeline() {
           max={duration || 1}
           step={0.01}
           value={currentTime}
-          onChange={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd))}
-          className="w-full h-1.5 cursor-pointer accent-white
-                     bg-gray-700 rounded-full appearance-none
-                     [&::-webkit-slider-thumb]:appearance-none
-                     [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
-                     [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white
-                     [&::-webkit-slider-thumb]:cursor-pointer
-                     [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3
-                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white
-                     [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+          onInput={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd || duration))}
+          onChange={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd || duration))}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className="w-full cursor-pointer accent-white"
+          style={{ accentColor: 'white' }}
         />
       </div>
     </div>
