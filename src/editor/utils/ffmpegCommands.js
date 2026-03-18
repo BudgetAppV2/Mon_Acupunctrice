@@ -10,6 +10,7 @@
  * @param {number} opts.audioVolume       - imported audio volume 0-1
  * @param {number} opts.originalVolume    - original audio volume 0-1
  * @param {string|null} opts.subtitleFile - SRT filename in virtual FS (or null)
+ * @param {string} opts.subtitleStyle    - Style preset key ('classic'|'tiktok'|'karaoke')
  * @param {Array} opts.textOverlays      - array of text overlay objects
  * @param {object} opts.outputSize       - { width, height } for output
  * @returns {string[]} FFmpeg command arguments
@@ -24,6 +25,7 @@ export function buildExportCommand(opts) {
     audioVolume = 0.5,
     originalVolume = 1,
     subtitleFile = null,
+    subtitleStyle = 'classic',
     textOverlays = [],
     outputSize = { width: 1080, height: 1920 },
   } = opts
@@ -55,9 +57,15 @@ export function buildExportCommand(opts) {
   vFilters.push(`scale=${outputSize.width}:${outputSize.height}:force_original_aspect_ratio=decrease`)
   vFilters.push(`pad=${outputSize.width}:${outputSize.height}:(ow-iw)/2:(oh-ih)/2:black`)
 
-  // Burn subtitles
+  // Burn subtitles — style-aware colors (word-by-word animation only in WebCodecs)
   if (subtitleFile) {
-    vFilters.push(`subtitles=${subtitleFile}:force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=2,Alignment=2'`)
+    const subColors = {
+      classic:  { primary: '&H00FFFFFF', outline: '&H00000000', fontSize: 28 },
+      tiktok:   { primary: '&H0035E1FF', outline: '&H00000000', fontSize: 34 }, // FFE135 → BGR
+      karaoke:  { primary: '&H0088FF00', outline: '&H00000000', fontSize: 32 }, // 00FF88 → BGR
+    }
+    const sc = subColors[subtitleStyle] || subColors.classic
+    vFilters.push(`subtitles=${subtitleFile}:force_style='FontSize=${sc.fontSize},PrimaryColour=${sc.primary},OutlineColour=${sc.outline},Outline=2,Alignment=2,Bold=1'`)
   }
 
   // Burn text overlays (only those with text)

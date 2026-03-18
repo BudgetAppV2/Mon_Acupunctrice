@@ -108,10 +108,11 @@ export default function CalendarPage({ onSelectItem }) {
 }
 
 export const STATUS_DOT = {
-  'idée':      'bg-gray-300',
-  'à-filmer':  'bg-yellow-400',
-  'filmé':     'bg-blue-400',
-  'monté':     'bg-purple-400',
-  'schedulé':  'bg-orange-400',
-  'publié':    'bg-sage-500',
+  'idée':                'bg-gray-300',
+  'à-filmer':            'bg-yellow-400',
+  'filmé':               'bg-blue-400',
+  'monté':               'bg-purple-400',
+  'schedulé':            'bg-orange-400',
+  'publié':              'bg-sage-500',
+  'erreur_publication':  'bg-red-500',
 }

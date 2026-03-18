@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
-import { Stage, Layer, Text } from 'react-konva'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { Stage, Layer, Text, Rect, Group } from 'react-konva'
 import useEditorStore from '../store/useEditorStore.js'
 import { useVideoPlayer } from '../hooks/useVideoPlayer.js'
 import { formatTime } from '../utils/timeUtils.js'
+import { SUBTITLE_STYLES, generateTikTokPages, getActivePageAndToken } from '../utils/subtitleStyles.js'
 
 function useResponsivePreview() {
   const [dims, setDims] = useState(() => calcDims())
@@ -42,6 +43,7 @@ export default function VideoPreview() {
   const textOverlays = useEditorStore(s => s.textOverlays)
   const subtitles = useEditorStore(s => s.subtitles)
   const subtitlesVisible = useEditorStore(s => s.subtitlesVisible)
+  const subtitleStyle = useEditorStore(s => s.subtitleStyle)
   const selectedOverlayId = useEditorStore(s => s.selectedOverlayId)
   const updateTextOverlay = useEditorStore(s => s.updateTextOverlay)
   const selectOverlay = useEditorStore(s => s.selectOverlay)
@@ -62,8 +64,19 @@ export default function VideoPreview() {
     o => currentTime >= o.startTime && currentTime <= o.endTime
   )
 
-  // Current subtitle at current time
-  const currentSubtitle = subtitlesVisible
+  // Generate TikTok pages from subtitles (memoized)
+  const tikTokPages = useMemo(() => generateTikTokPages(subtitles), [subtitles])
+
+  // Get current style config
+  const styleConfig = SUBTITLE_STYLES[subtitleStyle] || SUBTITLE_STYLES.classic
+
+  // Current page and active token for animated styles
+  const { page: currentPage, activeTokenIndex } = subtitlesVisible
+    ? getActivePageAndToken(tikTokPages, currentTime)
+    : { page: null, activeTokenIndex: -1 }
+
+  // Fallback: for classic (non-animated) style, just find the subtitle
+  const currentSubtitle = (!styleConfig.animated && subtitlesVisible)
     ? subtitles.find(s => currentTime >= s.startTime && currentTime <= s.endTime)
     : null
 
@@ -126,21 +139,77 @@ export default function VideoPreview() {
               />
             ))}
 
-            {/* Subtitle */}
-            {currentSubtitle && (
+            {/* Subtitle — classic (static) */}
+            {currentSubtitle && !styleConfig.animated && (
               <Text
                 text={currentSubtitle.text}
                 x={previewWidth * 0.05}
                 y={previewHeight * 0.85}
                 width={previewWidth * 0.9}
-                fontSize={22}
-                fontFamily="Arial"
-                fill="#FFFFFF"
-                stroke="#000000"
-                strokeWidth={2}
+                fontSize={(styleConfig.fontSize || 28) * (previewWidth / 1080)}
+                fontFamily={styleConfig.fontFamily || 'Arial'}
+                fontStyle={styleConfig.fontWeight || 'bold'}
+                fill={styleConfig.color || '#FFFFFF'}
+                stroke={styleConfig.strokeColor || '#000000'}
+                strokeWidth={(styleConfig.strokeWidth || 3) * (previewWidth / 1080)}
                 align="center"
                 listening={false}
               />
+            )}
+
+            {/* Subtitle — animated (TikTok / Karaoke word-by-word) */}
+            {currentPage && styleConfig.animated && (
+              <Group
+                x={0}
+                y={previewHeight * 0.83}
+                listening={false}
+              >
+                {/* Background for karaoke style */}
+                {styleConfig.backgroundColor && (
+                  <Rect
+                    x={previewWidth * 0.05}
+                    y={-4}
+                    width={previewWidth * 0.9}
+                    height={(styleConfig.fontSize * (previewWidth / 1080)) + 12}
+                    fill={styleConfig.backgroundColor}
+                    cornerRadius={6}
+                  />
+                )}
+                {/* Render each token */}
+                {(() => {
+                  const scale = previewWidth / 1080
+                  const fontSize = styleConfig.fontSize * scale
+                  // Estimate total width for centering — use canvas measurement
+                  const tokenTexts = currentPage.tokens.map(t => t.text)
+                  const fullText = tokenTexts.join('')
+                  // Approximate char width (Konva doesn't expose measureText easily)
+                  const charWidth = fontSize * 0.55
+                  const totalWidth = fullText.length * charWidth
+                  let x = (previewWidth - totalWidth) / 2
+
+                  return currentPage.tokens.map((token, i) => {
+                    const isActive = i <= activeTokenIndex
+                    const tokenWidth = token.text.length * charWidth
+                    const textNode = (
+                      <Text
+                        key={i}
+                        text={token.text}
+                        x={x}
+                        y={0}
+                        fontSize={fontSize}
+                        fontFamily={styleConfig.fontFamily}
+                        fontStyle={styleConfig.fontWeight}
+                        fill={isActive ? styleConfig.activeColor : styleConfig.color}
+                        stroke={styleConfig.strokeWidth > 0 ? styleConfig.strokeColor : undefined}
+                        strokeWidth={styleConfig.strokeWidth > 0 ? styleConfig.strokeWidth * scale : 0}
+                        listening={false}
+                      />
+                    )
+                    x += tokenWidth
+                    return textNode
+                  })
+                })()}
+              </Group>
             )}
           </Layer>
         </Stage>

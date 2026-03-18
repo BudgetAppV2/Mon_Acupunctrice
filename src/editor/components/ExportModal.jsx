@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { storage } from '../../firebase.js'
 import useEditorStore from '../store/useEditorStore.js'
 import { useFFmpeg } from '../hooks/useFFmpeg.js'
 import { useContentItems } from '../../hooks/useContentItems.js'
 import { buildExportCommand } from '../utils/ffmpegCommands.js'
 import { toSRT } from '../utils/subtitleParser.js'
+import { isWebCodecsSupported, exportWithWebCodecs } from '../utils/webcodecs-export.js'
 
 const FORMAT_OPTIONS = [
   { label: 'Reel (9:16)', width: 1080, height: 1920 },
@@ -19,6 +21,15 @@ export default function ExportModal({ onClose }) {
   const [format, setFormat] = useState(FORMAT_OPTIONS[0])
   const [uploading, setUploading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [publishStep, setPublishStep] = useState(null) // null | 'caption' | 'publishing' | 'published'
+  const [caption, setCaption] = useState('')
+  const [generatingCaption, setGeneratingCaption] = useState(false)
+  const [useWebCodecs, setUseWebCodecs] = useState(false)
+
+  // Detect WebCodecs support on mount
+  useEffect(() => {
+    isWebCodecsSupported().then(setUseWebCodecs)
+  }, [])
 
   const { load, writeFile, readFile, exec } = useFFmpeg()
   const { updateItem } = useContentItems()
@@ -32,6 +43,7 @@ export default function ExportModal({ onClose }) {
   const originalAudioVolume = useEditorStore(s => s.originalAudioVolume)
   const textOverlays = useEditorStore(s => s.textOverlays)
   const subtitles = useEditorStore(s => s.subtitles)
+  const subtitleStyle = useEditorStore(s => s.subtitleStyle)
   const contentItemId = useEditorStore(s => s.contentItemId)
   const isExporting = useEditorStore(s => s.isExporting)
   const exportProgress = useEditorStore(s => s.exportProgress)
@@ -54,30 +66,48 @@ export default function ExportModal({ onClose }) {
     setExportProgress(0)
 
     try {
-      // Load FFmpeg
+      // Try WebCodecs first (10-50x faster, hardware-accelerated)
+      if (useWebCodecs) {
+        console.log('[Export] Using WebCodecs + mediabunny (hardware-accelerated)')
+        const blob = await exportWithWebCodecs({
+          videoSource: videoFile || videoUrl,
+          trimStart,
+          trimEnd,
+          textOverlays,
+          subtitles,
+          subtitleStyle,
+          audioFile,
+          audioVolume,
+          originalVolume: originalAudioVolume,
+          outputSize: { width: format.width, height: format.height },
+          onProgress: setExportProgress,
+        })
+        const url = URL.createObjectURL(blob)
+        setExported(url, blob)
+        return
+      }
+
+      // Fallback: FFmpeg.wasm (slower, but universal)
+      console.log('[Export] Using FFmpeg.wasm fallback')
       await load()
 
-      // Write input video to virtual FS
       const inputName = 'input.mp4'
       const outputName = 'output.mp4'
 
       if (videoFile) {
         await writeFile(inputName, videoFile)
       } else {
-        // Fetch from URL
         const response = await fetch(videoUrl)
         const blob = await response.blob()
         await writeFile(inputName, blob)
       }
 
-      // Write audio if present
       let audioName = null
       if (audioFile) {
         audioName = 'audio.mp3'
         await writeFile(audioName, audioFile)
       }
 
-      // Write subtitles if present
       let subtitleName = null
       if (subtitles.length > 0) {
         subtitleName = 'subs.srt'
@@ -85,7 +115,6 @@ export default function ExportModal({ onClose }) {
         await writeFile(subtitleName, srtContent)
       }
 
-      // Build and run FFmpeg command
       const args = buildExportCommand({
         inputFile: inputName,
         outputFile: outputName,
@@ -95,6 +124,7 @@ export default function ExportModal({ onClose }) {
         audioVolume,
         originalVolume: originalAudioVolume,
         subtitleFile: subtitleName,
+        subtitleStyle,
         textOverlays,
         outputSize: { width: format.width, height: format.height },
       })
@@ -103,14 +133,22 @@ export default function ExportModal({ onClose }) {
         setExportProgress(progress)
       })
 
-      // Read output
       const data = await readFile(outputName)
       const blob = new Blob([data.buffer], { type: 'video/mp4' })
       const url = URL.createObjectURL(blob)
-
       setExported(url, blob)
     } catch (err) {
       console.error('Export error:', err)
+      // If WebCodecs failed, retry with FFmpeg fallback
+      if (useWebCodecs) {
+        console.warn('[Export] WebCodecs failed, retrying with FFmpeg.wasm...')
+        setUseWebCodecs(false)
+        setExporting(false)
+        setExportProgress(0)
+        // Re-trigger export — will use FFmpeg path on next call
+        setTimeout(() => handleExport(), 100)
+        return
+      }
       alert('Erreur lors de l\'export: ' + err.message)
       setExporting(false)
     }
@@ -188,6 +226,47 @@ export default function ExportModal({ onClose }) {
     }
   }
 
+  const handleStartPublish = async () => {
+    setPublishStep('caption')
+    setGeneratingCaption(true)
+    try {
+      const functions = getFunctions()
+      const generateCaption = httpsCallable(functions, 'generateCaption')
+      const contentItem = useEditorStore.getState().contentItem
+      const result = await generateCaption({
+        title: contentItem?.title || '',
+        category: contentItem?.category || '',
+        platforms: contentItem?.platforms || ['instagram'],
+        notes: contentItem?.notes || '',
+      })
+      const options = result.data.options || []
+      setCaption(options[0] || '')
+    } catch (err) {
+      console.error('Caption generation failed:', err)
+      setCaption('')
+    } finally {
+      setGeneratingCaption(false)
+    }
+  }
+
+  const handlePublishNow = async () => {
+    if (!contentItemId || !caption.trim()) return
+    setPublishStep('publishing')
+    try {
+      // Save caption to Firestore first
+      await updateItem(contentItemId, { caption: caption.trim() })
+      // Call publishToInstagram
+      const functions = getFunctions()
+      const publishToInstagram = httpsCallable(functions, 'publishToInstagram')
+      await publishToInstagram({ itemId: contentItemId })
+      setPublishStep('published')
+    } catch (err) {
+      console.error('Publish error:', err)
+      alert('Erreur de publication: ' + err.message)
+      setPublishStep('caption') // Go back to caption editing
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-2xl shadow-xl w-full max-w-md p-6 text-white">
@@ -225,6 +304,9 @@ export default function ExportModal({ onClose }) {
             >
               Lancer l'export
             </button>
+            <p className="text-center text-xs text-gray-500 mt-2">
+              {useWebCodecs ? 'WebCodecs (hardware)' : 'FFmpeg.wasm (logiciel)'}
+            </p>
           </>
         )}
 
@@ -276,19 +358,96 @@ export default function ExportModal({ onClose }) {
           </div>
         )}
 
-        {/* Saved confirmation */}
-        {saved && (
+        {/* Saved — show publish options */}
+        {saved && !publishStep && (
           <div className="text-center py-6 space-y-4">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-sage-500/20 mb-2">
               <span className="text-3xl">&#10003;</span>
             </div>
             <p className="text-sm text-gray-200 font-medium">Vidéo sauvegardée dans le hub</p>
+            <div className="space-y-2">
+              <button
+                onClick={handleStartPublish}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600
+                           text-white py-2.5 rounded-xl font-medium transition text-sm"
+              >
+                Publier sur Instagram
+              </button>
+              <button
+                onClick={() => navigate('/idees')}
+                className="w-full border border-gray-600 text-gray-300 hover:bg-gray-700
+                           py-2.5 rounded-xl font-medium transition text-sm"
+              >
+                Retour aux idées
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Caption editing step */}
+        {publishStep === 'caption' && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-300 font-medium">Légende Instagram</p>
+            {generatingCaption ? (
+              <div className="text-center py-4">
+                <div className="inline-block w-6 h-6 border-2 border-purple-400/30 border-t-purple-400
+                                rounded-full animate-spin mb-2" />
+                <p className="text-xs text-gray-400">Génération de la légende...</p>
+              </div>
+            ) : (
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={8}
+                className="w-full bg-gray-700 border border-gray-600 rounded-xl px-3 py-2 text-sm text-white
+                           focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+                placeholder="Écris ta légende ici..."
+              />
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPublishStep(null)}
+                className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-700
+                           py-2 rounded-xl text-sm transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handlePublishNow}
+                disabled={!caption.trim() || generatingCaption}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600
+                           disabled:opacity-40 text-white py-2 rounded-xl font-medium text-sm transition"
+              >
+                Publier
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Publishing in progress */}
+        {publishStep === 'publishing' && (
+          <div className="text-center py-8">
+            <div className="inline-block w-10 h-10 border-3 border-purple-400/30 border-t-purple-400
+                            rounded-full animate-spin mb-4" />
+            <p className="text-sm text-gray-300">Publication en cours...</p>
+            <p className="text-xs text-gray-500 mt-1">Instagram traite la vidéo</p>
+          </div>
+        )}
+
+        {/* Published success */}
+        {publishStep === 'published' && (
+          <div className="text-center py-6 space-y-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full
+                            bg-gradient-to-r from-purple-500/20 to-pink-500/20 mb-2">
+              <span className="text-3xl">&#10003;</span>
+            </div>
+            <p className="text-sm text-gray-200 font-medium">Publié sur Instagram</p>
             <button
-              onClick={() => navigate('/idees')}
+              onClick={() => navigate('/calendrier')}
               className="w-full bg-sage-500 hover:bg-sage-600 text-white py-2.5 rounded-xl
                          font-medium transition text-sm"
             >
-              Retour aux idées
+              Retour au calendrier
             </button>
           </div>
         )}

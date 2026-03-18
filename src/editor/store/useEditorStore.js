@@ -29,6 +29,7 @@ const useEditorStore = create((set, get) => ({
   subtitles: [],
   subtitlesVisible: true,
   generatingSubtitles: false,
+  subtitleStyle: 'classic', // 'classic' | 'tiktok' | 'karaoke'
 
   // ─── Audio track ───────────────────────────────
   audioFile: null,
@@ -142,6 +143,7 @@ const useEditorStore = create((set, get) => ({
   setSubtitles: (subs) => set({ subtitles: subs }),
   toggleSubtitles: () => set(s => ({ subtitlesVisible: !s.subtitlesVisible })),
   setGeneratingSubtitles: (v) => set({ generatingSubtitles: v }),
+  setSubtitleStyle: (style) => set({ subtitleStyle: style }),
 
   updateSubtitle: (id, updates) => set(s => ({
     subtitles: s.subtitles.map(sub => sub.id === id ? { ...sub, ...updates } : sub),
@@ -194,6 +196,7 @@ const useEditorStore = create((set, get) => ({
     subtitles: [],
     subtitlesVisible: true,
     generatingSubtitles: false,
+    subtitleStyle: 'classic',
     audioFile: null,
     audioUrl: null,
     audioVolume: 0.5,

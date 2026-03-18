@@ -1,10 +1,11 @@
 const STATUS_COLORS = {
-  'idée':      'bg-gray-200 text-gray-600',
-  'à-filmer':  'bg-yellow-100 text-yellow-700',
-  'filmé':     'bg-blue-100 text-blue-700',
-  'monté':     'bg-purple-100 text-purple-700',
-  'schedulé':  'bg-orange-100 text-orange-700',
-  'publié':    'bg-sage-100 text-sage-700',
+  'idée':                'bg-gray-200 text-gray-600',
+  'à-filmer':            'bg-yellow-100 text-yellow-700',
+  'filmé':               'bg-blue-100 text-blue-700',
+  'monté':               'bg-purple-100 text-purple-700',
+  'schedulé':            'bg-orange-100 text-orange-700',
+  'publié':              'bg-sage-100 text-sage-700',
+  'erreur_publication':  'bg-red-100 text-red-700',
 }
 
 const CATEGORY_COLORS = {
@@ -46,6 +47,7 @@ export default function ContentCard({ item, compact = false, onSchedule, onOpen,
         item.status === 'filmé'    ? 'border-blue-400 bg-blue-50' :
         item.status === 'monté'    ? 'border-purple-400 bg-purple-50' :
         item.status === 'à-filmer' ? 'border-yellow-400 bg-yellow-50' :
+        item.status === 'erreur_publication' ? 'border-red-500 bg-red-50' :
         'border-gray-300 bg-gray-50'
       }`}>
         {thumbUrl && (

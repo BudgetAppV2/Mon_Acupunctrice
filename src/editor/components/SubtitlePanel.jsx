@@ -4,6 +4,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { storage } from '../../firebase.js'
 import useEditorStore from '../store/useEditorStore.js'
 import { formatTime } from '../utils/timeUtils.js'
+import { SUBTITLE_STYLES } from '../utils/subtitleStyles.js'
 
 export default function SubtitlePanel() {
   const subtitles = useEditorStore(s => s.subtitles)
@@ -16,6 +17,8 @@ export default function SubtitlePanel() {
   const removeSubtitle = useEditorStore(s => s.removeSubtitle)
   const videoFile = useEditorStore(s => s.videoFile)
   const contentItemId = useEditorStore(s => s.contentItemId)
+  const subtitleStyle = useEditorStore(s => s.subtitleStyle)
+  const setSubtitleStyle = useEditorStore(s => s.setSubtitleStyle)
 
   const [error, setError] = useState(null)
 
@@ -80,6 +83,34 @@ export default function SubtitlePanel() {
           </button>
         </div>
       </div>
+
+      {/* Style presets */}
+      {subtitles.length > 0 && (
+        <div>
+          <label className="text-xs text-gray-400 block mb-2">Style</label>
+          <div className="flex gap-2">
+            {Object.values(SUBTITLE_STYLES).map(style => (
+              <button
+                key={style.id}
+                onClick={() => setSubtitleStyle(style.id)}
+                className={`flex-1 text-center py-2 rounded-lg border text-xs font-medium transition ${
+                  subtitleStyle === style.id
+                    ? 'border-sage-400 bg-sage-500/20 text-sage-300'
+                    : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                }`}
+              >
+                <span className="block text-sm mb-0.5" style={{
+                  color: style.id === 'tiktok' ? '#FFE135' : style.id === 'karaoke' ? '#00FF88' : '#FFFFFF',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                }}>
+                  Aa
+                </span>
+                {style.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="text-xs text-red-400 bg-red-900/20 rounded-lg p-2">{error}</p>
