@@ -176,3 +176,4 @@ Ajouter un bouton "📤 Publier sur Instagram" dans `ItemPanel.jsx` :
 - Mobile-first
 - Tout le code frontend en JSX, backend en TypeScript
 - Les secrets ne doivent JAMAIS être dans le code client
+# Tue Mar 17 21:09:06 EDT 2026
