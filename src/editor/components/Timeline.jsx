@@ -1,12 +1,9 @@
-import { useRef } from 'react'
 import useEditorStore from '../store/useEditorStore.js'
 import { useVideoPlayer } from '../hooks/useVideoPlayer.js'
-import { formatTime, clamp } from '../utils/timeUtils.js'
+import { formatTime } from '../utils/timeUtils.js'
 import TimelineTrack from './TimelineTrack.jsx'
 
 export default function Timeline() {
-  const trackRef = useRef(null)
-
   const videoDuration = useEditorStore(s => s.videoDuration)
   const currentTime = useEditorStore(s => s.currentTime)
   const trimStart = useEditorStore(s => s.trimStart)
@@ -34,7 +31,6 @@ export default function Timeline() {
 
       {/* Tracks container */}
       <div
-        ref={trackRef}
         className="relative px-4 pb-1 pt-1 select-none"
         style={{ minWidth: `${100 * timelineZoom}%` }}
       >
@@ -93,20 +89,17 @@ export default function Timeline() {
         )}
       </div>
 
-      {/* Visible seek slider */}
-      <div className="px-4 pb-3">
+      {/* Slider seek — completely separate from tracks */}
+      <div className="px-4 py-2 bg-gray-800">
         <input
           type="range"
           min={0}
           max={duration || 1}
           step={0.01}
           value={currentTime}
-          onInput={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd || duration))}
-          onChange={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd || duration))}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
+          onInput={(e) => seekTo(parseFloat(e.target.value))}
+          onChange={(e) => seekTo(parseFloat(e.target.value))}
           className="w-full cursor-pointer accent-white"
-          style={{ accentColor: 'white' }}
         />
       </div>
     </div>

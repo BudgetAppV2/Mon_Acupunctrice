@@ -21,6 +21,8 @@ export default function SubtitlePanel() {
   const contentItem = useEditorStore(s => s.contentItem)
   const subtitleStyle = useEditorStore(s => s.subtitleStyle)
   const setSubtitleStyle = useEditorStore(s => s.setSubtitleStyle)
+  const subtitleConfig = useEditorStore(s => s.subtitleConfig)
+  const setSubtitleConfig = useEditorStore(s => s.setSubtitleConfig)
 
   const [error, setError] = useState(null)
 
@@ -133,6 +135,52 @@ export default function SubtitlePanel() {
                 {style.label}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Position & size controls */}
+      {subtitles.length > 0 && (
+        <div className="space-y-3">
+          {/* Font size */}
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">
+              Taille : {subtitleConfig.fontSize}px
+            </label>
+            <input
+              type="range"
+              min={16}
+              max={48}
+              step={1}
+              value={subtitleConfig.fontSize}
+              onInput={(e) => setSubtitleConfig({ fontSize: parseInt(e.target.value) })}
+              onChange={(e) => setSubtitleConfig({ fontSize: parseInt(e.target.value) })}
+              className="w-full accent-white cursor-pointer"
+            />
+          </div>
+
+          {/* Position presets */}
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Position</label>
+            <div className="flex gap-2">
+              {[
+                { label: 'Haut', y: 0.1 },
+                { label: 'Centre', y: 0.5 },
+                { label: 'Bas', y: 0.85 },
+              ].map(pos => (
+                <button
+                  key={pos.label}
+                  onClick={() => setSubtitleConfig({ y: pos.y })}
+                  className={`flex-1 text-center py-1.5 rounded-lg border text-xs font-medium transition ${
+                    Math.abs(subtitleConfig.y - pos.y) < 0.05
+                      ? 'border-sage-400 bg-sage-500/20 text-sage-300'
+                      : 'border-gray-600 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  {pos.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

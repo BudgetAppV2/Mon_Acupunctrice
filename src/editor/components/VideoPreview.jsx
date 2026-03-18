@@ -3,7 +3,7 @@ import { Stage, Layer, Text, Rect, Group } from 'react-konva'
 import useEditorStore from '../store/useEditorStore.js'
 import { useVideoPlayer } from '../hooks/useVideoPlayer.js'
 import { formatTime } from '../utils/timeUtils.js'
-import { SUBTITLE_STYLES, generateTikTokPages, getActivePageAndToken } from '../utils/subtitleStyles.js'
+import { SUBTITLE_STYLES } from '../utils/subtitleStyles.js'
 
 function useResponsivePreview() {
   const [dims, setDims] = useState(() => calcDims())
@@ -44,6 +44,8 @@ export default function VideoPreview() {
   const subtitles = useEditorStore(s => s.subtitles)
   const subtitlesVisible = useEditorStore(s => s.subtitlesVisible)
   const subtitleStyle = useEditorStore(s => s.subtitleStyle)
+  const subtitleConfig = useEditorStore(s => s.subtitleConfig)
+  const setSubtitleConfig = useEditorStore(s => s.setSubtitleConfig)
   const selectedOverlayId = useEditorStore(s => s.selectedOverlayId)
   const updateTextOverlay = useEditorStore(s => s.updateTextOverlay)
   const selectOverlay = useEditorStore(s => s.selectOverlay)
@@ -64,21 +66,27 @@ export default function VideoPreview() {
     o => currentTime >= o.startTime && currentTime <= o.endTime
   )
 
-  // Generate TikTok pages from subtitles (memoized)
-  const tikTokPages = useMemo(() => generateTikTokPages(subtitles), [subtitles])
-
   // Get current style config
   const styleConfig = SUBTITLE_STYLES[subtitleStyle] || SUBTITLE_STYLES.classic
 
-  // Current page and active token for animated styles
-  const { page: currentPage, activeTokenIndex } = subtitlesVisible
-    ? getActivePageAndToken(tikTokPages, currentTime)
-    : { page: null, activeTokenIndex: -1 }
-
-  // Fallback: for classic (non-animated) style, just find the subtitle
-  const currentSubtitle = (!styleConfig.animated && subtitlesVisible)
+  // Find the current subtitle group at this time
+  const currentSubtitle = subtitlesVisible
     ? subtitles.find(s => currentTime >= s.startTime && currentTime <= s.endTime)
     : null
+
+  // For animated styles, find which word within the group is active
+  const activeWordIndex = useMemo(() => {
+    if (!currentSubtitle?.words?.length || !styleConfig.animated) return -1
+    for (let i = currentSubtitle.words.length - 1; i >= 0; i--) {
+      if (currentTime >= currentSubtitle.words[i].start) return i
+    }
+    return -1
+  }, [currentSubtitle, currentTime, styleConfig.animated])
+
+  // Subtitle position from config
+  const subX = (subtitleConfig?.x ?? 0.5) * previewWidth
+  const subY = (subtitleConfig?.y ?? 0.85) * previewHeight
+  const subFontSize = (subtitleConfig?.fontSize ?? styleConfig.fontSize) * (previewWidth / 1080)
 
   return (
     <div className="relative flex flex-col items-center">
@@ -139,30 +147,41 @@ export default function VideoPreview() {
               />
             ))}
 
-            {/* Subtitle — classic (static) */}
+            {/* Subtitle — classic (static, no word highlight) */}
             {currentSubtitle && !styleConfig.animated && (
               <Text
                 text={currentSubtitle.text}
-                x={previewWidth * 0.05}
-                y={previewHeight * 0.85}
+                x={subX - previewWidth * 0.45}
+                y={subY}
                 width={previewWidth * 0.9}
-                fontSize={(styleConfig.fontSize || 28) * (previewWidth / 1080)}
+                fontSize={subFontSize}
                 fontFamily={styleConfig.fontFamily || 'Arial'}
                 fontStyle={styleConfig.fontWeight || 'bold'}
                 fill={styleConfig.color || '#FFFFFF'}
                 stroke={styleConfig.strokeColor || '#000000'}
                 strokeWidth={(styleConfig.strokeWidth || 3) * (previewWidth / 1080)}
                 align="center"
-                listening={false}
+                draggable
+                onDragEnd={(e) => {
+                  setSubtitleConfig({
+                    x: (e.target.x() + previewWidth * 0.45) / previewWidth,
+                    y: e.target.y() / previewHeight,
+                  })
+                }}
               />
             )}
 
-            {/* Subtitle — animated (TikTok / Karaoke word-by-word) */}
-            {currentPage && styleConfig.animated && (
+            {/* Subtitle — animated (TikTok / Karaoke word-by-word within group) */}
+            {currentSubtitle && styleConfig.animated && (
               <Group
                 x={0}
-                y={previewHeight * 0.83}
-                listening={false}
+                y={subY}
+                draggable
+                onDragEnd={(e) => {
+                  setSubtitleConfig({
+                    y: e.target.y() / previewHeight,
+                  })
+                }}
               >
                 {/* Background for karaoke style */}
                 {styleConfig.backgroundColor && (
@@ -170,33 +189,50 @@ export default function VideoPreview() {
                     x={previewWidth * 0.05}
                     y={-4}
                     width={previewWidth * 0.9}
-                    height={(styleConfig.fontSize * (previewWidth / 1080)) + 12}
+                    height={subFontSize + 12}
                     fill={styleConfig.backgroundColor}
                     cornerRadius={6}
                   />
                 )}
-                {/* Render each token */}
+                {/* Render each word in the group */}
                 {(() => {
-                  const scale = previewWidth / 1080
-                  const fontSize = styleConfig.fontSize * scale
-                  // Estimate total width for centering — use canvas measurement
-                  const tokenTexts = currentPage.tokens.map(t => t.text)
-                  const fullText = tokenTexts.join('')
-                  // Approximate char width (Konva doesn't expose measureText easily)
-                  const charWidth = fontSize * 0.55
+                  const words = currentSubtitle.words || []
+                  if (!words.length) {
+                    // No word-level data — render full text
+                    return (
+                      <Text
+                        text={currentSubtitle.text}
+                        x={previewWidth * 0.05}
+                        y={0}
+                        width={previewWidth * 0.9}
+                        fontSize={subFontSize}
+                        fontFamily={styleConfig.fontFamily}
+                        fontStyle={styleConfig.fontWeight}
+                        fill={styleConfig.color}
+                        align="center"
+                        listening={false}
+                      />
+                    )
+                  }
+
+                  // Approximate char width for centering
+                  const charWidth = subFontSize * 0.55
+                  const fullText = words.map(w => w.word).join(' ')
                   const totalWidth = fullText.length * charWidth
                   let x = (previewWidth - totalWidth) / 2
+                  const scale = previewWidth / 1080
 
-                  return currentPage.tokens.map((token, i) => {
-                    const isActive = i <= activeTokenIndex
-                    const tokenWidth = token.text.length * charWidth
-                    const textNode = (
+                  return words.map((w, i) => {
+                    const isActive = i <= activeWordIndex
+                    const wordText = i < words.length - 1 ? w.word + ' ' : w.word
+                    const wordWidth = wordText.length * charWidth
+                    const node = (
                       <Text
                         key={i}
-                        text={token.text}
+                        text={wordText}
                         x={x}
                         y={0}
-                        fontSize={fontSize}
+                        fontSize={subFontSize}
                         fontFamily={styleConfig.fontFamily}
                         fontStyle={styleConfig.fontWeight}
                         fill={isActive ? styleConfig.activeColor : styleConfig.color}
@@ -205,8 +241,8 @@ export default function VideoPreview() {
                         listening={false}
                       />
                     )
-                    x += tokenWidth
-                    return textNode
+                    x += wordWidth
+                    return node
                   })
                 })()}
               </Group>
