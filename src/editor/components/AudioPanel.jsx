@@ -2,9 +2,11 @@ import { useRef, useEffect, useState } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import useEditorStore from '../store/useEditorStore.js'
 
+// TODO: Onglet "Générer" (musique AI) — prévu Phase 4
+// Options à évaluer: Suno API, Soundraw, ou autre API gratuite
+
 const AUDIO_TABS = [
   { id: 'library', label: 'Bibliothèque', icon: '🎵' },
-  { id: 'generate', label: 'Générer', icon: '🤖' },
   { id: 'file', label: 'Fichier', icon: '📁' },
 ]
 
@@ -15,13 +17,6 @@ const MOOD_FILTERS = [
   { label: 'Énergique', tag: 'energetic' },
 ]
 
-const MUBERT_MOODS = [
-  { label: 'Relaxant', emoji: '🧘', prompt: 'relaxing calm meditation spa music' },
-  { label: 'Zen', emoji: '🌿', prompt: 'zen ambient peaceful nature sounds' },
-  { label: 'Professionnel', emoji: '💼', prompt: 'professional corporate upbeat background' },
-  { label: 'Énergique', emoji: '✨', prompt: 'energetic uplifting positive motivation' },
-]
-
 export default function AudioPanel() {
   const audioUrl = useEditorStore(s => s.audioUrl)
   const audioVolume = useEditorStore(s => s.audioVolume)
@@ -30,7 +25,6 @@ export default function AudioPanel() {
   const clearAudio = useEditorStore(s => s.clearAudio)
   const setAudioVolume = useEditorStore(s => s.setAudioVolume)
   const setOriginalAudioVolume = useEditorStore(s => s.setOriginalAudioVolume)
-  const videoDuration = useEditorStore(s => s.videoDuration)
 
   const [activeTab, setActiveTab] = useState('library')
   const fileInputRef = useRef(null)
@@ -169,13 +163,6 @@ export default function AudioPanel() {
 
           {activeTab === 'library' && (
             <JamendoLibrary onImport={handleImportFromUrl} />
-          )}
-
-          {activeTab === 'generate' && (
-            <MubertGenerator
-              videoDuration={videoDuration}
-              onImport={handleImportFromUrl}
-            />
           )}
 
           {activeTab === 'file' && (
@@ -399,129 +386,3 @@ function JamendoLibrary({ onImport }) {
   )
 }
 
-// ─── Mubert Generator Sub-component ─────────────────────────────
-
-function MubertGenerator({ videoDuration, onImport }) {
-  const [selectedMood, setSelectedMood] = useState(null)
-  const [generating, setGenerating] = useState(false)
-  const [generatedUrl, setGeneratedUrl] = useState(null)
-  const [error, setError] = useState(null)
-  const [previewPlaying, setPreviewPlaying] = useState(false)
-  const audioRef = useRef(null)
-
-  const duration = Math.round(videoDuration || 30)
-
-  const handleGenerate = async (mood) => {
-    setSelectedMood(mood.prompt)
-    setGenerating(true)
-    setError(null)
-    setGeneratedUrl(null)
-
-    try {
-      const functions = getFunctions()
-      const generate = httpsCallable(functions, 'generateMubertTrack')
-      const result = await generate({
-        prompt: mood.prompt,
-        duration,
-      })
-      if (result.data?.audioUrl) {
-        setGeneratedUrl(result.data.audioUrl)
-      }
-    } catch (err) {
-      console.error('Mubert generation error:', err)
-      setError('Erreur de génération')
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  const handlePreview = () => {
-    if (!generatedUrl) return
-    if (previewPlaying) {
-      audioRef.current?.pause()
-      setPreviewPlaying(false)
-      return
-    }
-    const audio = new Audio(generatedUrl)
-    audio.volume = 0.5
-    audio.play()
-    audio.onended = () => setPreviewPlaying(false)
-    audioRef.current = audio
-    setPreviewPlaying(true)
-  }
-
-  useEffect(() => {
-    return () => { if (audioRef.current) audioRef.current.pause() }
-  }, [])
-
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-gray-500">
-        Musique AI générée pour ta vidéo ({duration}s)
-      </p>
-
-      {/* Mood presets */}
-      <div className="grid grid-cols-2 gap-2">
-        {MUBERT_MOODS.map(mood => (
-          <button
-            key={mood.prompt}
-            onClick={() => handleGenerate(mood)}
-            disabled={generating}
-            className={`flex flex-col items-center py-3 rounded-lg border text-xs font-medium transition ${
-              selectedMood === mood.prompt
-                ? 'border-sage-400 bg-sage-500/20 text-sage-300'
-                : 'border-gray-600 text-gray-400 hover:border-gray-500'
-            } disabled:opacity-40`}
-          >
-            <span className="text-xl mb-1">{mood.emoji}</span>
-            {mood.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Generating spinner */}
-      {generating && (
-        <div className="text-center py-3">
-          <div className="inline-block w-5 h-5 border-2 border-sage-400/30 border-t-sage-400
-                          rounded-full animate-spin mb-1" />
-          <p className="text-xs text-gray-400">Génération en cours...</p>
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <p className="text-xs text-red-400 bg-red-900/20 rounded-lg p-2">{error}</p>
-      )}
-
-      {/* Generated result */}
-      {generatedUrl && !generating && (
-        <div className="bg-gray-800 rounded-lg p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">Musique générée</span>
-            <button
-              onClick={handlePreview}
-              className={`text-xs px-3 py-1 rounded-full transition ${
-                previewPlaying
-                  ? 'bg-sage-500 text-white'
-                  : 'bg-gray-700 text-gray-400 hover:text-white'
-              }`}
-            >
-              {previewPlaying ? '⏸ Pause' : '▶ Écouter'}
-            </button>
-          </div>
-          <button
-            onClick={() => {
-              if (audioRef.current) audioRef.current.pause()
-              setPreviewPlaying(false)
-              onImport(generatedUrl)
-            }}
-            className="w-full text-xs bg-sage-500 hover:bg-sage-600 text-white py-2 rounded-lg
-                       font-medium transition"
-          >
-            Utiliser cette musique
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
