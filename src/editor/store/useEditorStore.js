@@ -94,6 +94,7 @@ const useEditorStore = create((set, get) => ({
 
   // ─── Playback ──────────────────────────────────
   setCurrentTime: (t) => set({ currentTime: t }),
+  seekTo: (t) => set({ currentTime: t, _seekRequest: t }),
   setPlaying: (playing) => set({ isPlaying: playing }),
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),

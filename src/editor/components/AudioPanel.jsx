@@ -32,11 +32,17 @@ export default function AudioPanel() {
   const waveformRef = useRef(null)
   const wavesurferRef = useRef(null)
 
+  // Debug: log audioUrl changes
+  useEffect(() => {
+    console.log('[AudioPanel] audioUrl changed:', audioUrl)
+  }, [audioUrl])
+
   // WaveSurfer for imported audio
   useEffect(() => {
     if (!audioUrl || !waveformRef.current) return
     let ws = null
     const initWaveSurfer = async () => {
+    console.log('[WaveSurfer] initWaveSurfer called with audioUrl:', audioUrl)
       const WaveSurfer = (await import('wavesurfer.js')).default
       ws = WaveSurfer.create({
         container: waveformRef.current,
@@ -48,8 +54,11 @@ export default function AudioPanel() {
         barRadius: 2,
         height: 48,
         responsive: true,
+        backend: 'MediaElement', // Crée un vrai <audio> dans le DOM
       })
       ws.on('error', (err) => console.error('[WaveSurfer] Error:', err))
+      ws.on('ready', () => console.log('[WaveSurfer] Ready! Duration:', ws.getDuration()))
+      ws.on('load', (url) => console.log('[WaveSurfer] Loading:', url))
       ws.load(audioUrl)
       ws.setVolume(audioVolume)
       wavesurferRef.current = ws
@@ -80,15 +89,20 @@ export default function AudioPanel() {
 
   const handleImportFromUrl = async (streamUrl) => {
     setImporting(true)
+    console.log('[Audio] Importing from URL:', streamUrl)
     try {
       const response = await fetch(streamUrl)
+      console.log('[Audio] Fetch response:', response.status, response.headers.get('content-type'))
       if (!response.ok) throw new Error(`Fetch failed: ${response.status}`)
       const blob = await response.blob()
+      console.log('[Audio] Blob size:', blob.size, 'type:', blob.type)
       const file = new File([blob], 'music.mp3', { type: blob.type || 'audio/mpeg' })
       const url = URL.createObjectURL(blob)
+      console.log('[Audio] ObjectURL created:', url)
       setAudio(file, url)
+      console.log('[Audio] setAudio called')
     } catch (err) {
-      console.error('Failed to import audio from URL:', err)
+      console.error('[Audio] Failed to import audio from URL:', err)
     } finally {
       setImporting(false)
     }

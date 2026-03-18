@@ -19,6 +19,8 @@ export default function Timeline() {
   const timelineZoom = useEditorStore(s => s.timelineZoom)
 
   const { seekTo } = useVideoPlayer()
+  // Use store seekTo for cross-component seeking
+  const storeSeekTo = useEditorStore(s => s.seekTo)
   const containerRef = useRef(null)
   const [tracksH, setTracksH] = useState(TOTAL_H - RULER_H - SLIDER_H)
 
@@ -124,16 +126,18 @@ export default function Timeline() {
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
           const rect = e.currentTarget.getBoundingClientRect()
-          const pad = 16 // px-4 = 16px padding each side
+          const pad = 16
           const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left - pad) / (rect.width - pad * 2)))
-          seekTo(ratio * (duration || 1))
+          console.log('[Timeline] PointerDown! ratio:', ratio.toFixed(2), 'seeking to:', (ratio * (duration || 1)).toFixed(2))
+          storeSeekTo(ratio * (duration || 1))
         }}
         onPointerMove={(e) => {
           if (e.buttons !== 1) return
           const rect = e.currentTarget.getBoundingClientRect()
           const pad = 16
           const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left - pad) / (rect.width - pad * 2)))
-          seekTo(ratio * (duration || 1))
+          console.log('[Timeline] PointerMove! ratio:', ratio.toFixed(2))
+          storeSeekTo(ratio * (duration || 1))
         }}
       >
         <div className="relative w-full h-1 bg-gray-600 rounded-full">
