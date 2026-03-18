@@ -117,22 +117,38 @@ export default function Timeline() {
         )}
       </div>
 
-      {/* Slider seek */}
+      {/* Slider seek — custom pointer-based for reliable drag */}
       <div
-        className="flex-shrink-0 px-4 flex items-center bg-gray-800"
+        className="flex-shrink-0 px-4 flex items-center bg-gray-800 cursor-pointer touch-none"
         style={{ height: SLIDER_H }}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          const rect = e.currentTarget.getBoundingClientRect()
+          const pad = 16 // px-4 = 16px padding each side
+          const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left - pad) / (rect.width - pad * 2)))
+          seekTo(ratio * (duration || 1))
+        }}
+        onPointerMove={(e) => {
+          if (e.buttons !== 1) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const pad = 16
+          const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left - pad) / (rect.width - pad * 2)))
+          seekTo(ratio * (duration || 1))
+        }}
       >
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={0.01}
-          value={currentTime}
-          onInput={(e) => seekTo(parseFloat(e.target.value))}
-          onChange={(e) => seekTo(parseFloat(e.target.value))}
-          className="w-full cursor-pointer accent-white"
-          style={{ margin: 0, padding: 0, height: 20 }}
-        />
+        <div className="relative w-full h-1 bg-gray-600 rounded-full">
+          <div
+            className="absolute left-0 top-0 h-full bg-white rounded-full"
+            style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+          />
+          <div
+            className="absolute top-1/2 w-3 h-3 bg-white rounded-full shadow-md pointer-events-none"
+            style={{
+              left: `${(currentTime / (duration || 1)) * 100}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        </div>
       </div>
     </div>
   )

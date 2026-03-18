@@ -88,6 +88,7 @@ app.get('/proxy-audio', async (req, res) => {
     if (!response.ok) return res.status(response.status).send('Fetch failed')
     res.setHeader('Content-Type', response.headers.get('content-type') || 'audio/mpeg')
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Accept-Ranges', 'bytes')
     if (response.headers.get('content-length')) {
       res.setHeader('Content-Length', response.headers.get('content-length'))

@@ -49,6 +49,7 @@ export default function AudioPanel() {
         height: 48,
         responsive: true,
       })
+      ws.on('error', (err) => console.error('[WaveSurfer] Error:', err))
       ws.load(audioUrl)
       ws.setVolume(audioVolume)
       wavesurferRef.current = ws
