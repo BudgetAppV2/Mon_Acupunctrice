@@ -16,38 +16,63 @@ export default function SubtitlePanel() {
   const updateSubtitle = useEditorStore(s => s.updateSubtitle)
   const removeSubtitle = useEditorStore(s => s.removeSubtitle)
   const videoFile = useEditorStore(s => s.videoFile)
+  const videoUrl = useEditorStore(s => s.videoUrl)
   const contentItemId = useEditorStore(s => s.contentItemId)
+  const contentItem = useEditorStore(s => s.contentItem)
   const subtitleStyle = useEditorStore(s => s.subtitleStyle)
   const setSubtitleStyle = useEditorStore(s => s.setSubtitleStyle)
 
   const [error, setError] = useState(null)
 
   const handleGenerate = async () => {
-    if (!videoFile) return
+    if (!videoFile && !videoUrl) return
     setGeneratingSubtitles(true)
     setError(null)
 
     try {
-      // Upload video to temp storage for transcription
-      const tempPath = `temp_audio/${contentItemId || 'editor'}/${Date.now()}.webm`
-      const storageRef = ref(storage, tempPath)
-      await uploadBytes(storageRef, videoFile)
-      const audioUrl = await getDownloadURL(storageRef)
+      let storagePath
+      let needsCleanup = false
+
+      if (videoFile) {
+        // Local file: upload to temp storage for transcription
+        storagePath = `temp_audio/${contentItemId || 'editor'}/${Date.now()}.webm`
+        const storageRef = ref(storage, storagePath)
+        await uploadBytes(storageRef, videoFile)
+        needsCleanup = true
+      } else {
+        // Video from Firestore: extract storage path from the original videoUrl
+        // Firebase Storage URLs contain the path encoded: /o/videos%2F{id}%2Fexport.mp4
+        const originalUrl = contentItem?.videoUrl || ''
+        const pathMatch = originalUrl.match(/\/o\/(.+?)\?/)
+        if (pathMatch) {
+          storagePath = decodeURIComponent(pathMatch[1])
+        } else {
+          // Fallback: download from proxy and re-upload
+          storagePath = `temp_audio/${contentItemId || 'editor'}/${Date.now()}.mp4`
+          const response = await fetch(videoUrl)
+          const blob = await response.blob()
+          const storageRef = ref(storage, storagePath)
+          await uploadBytes(storageRef, blob)
+          needsCleanup = true
+        }
+      }
 
       // Call transcription Cloud Function
       const functions = getFunctions()
       const transcribeAudio = httpsCallable(functions, 'transcribeAudio')
       const result = await transcribeAudio({
-        audioUrl,
-        storagePath: tempPath,
+        audioUrl: '', // Not used by CF — it reads from storagePath
+        storagePath,
       })
 
       if (result.data?.subtitles) {
         setSubtitles(result.data.subtitles)
       }
 
-      // Cleanup temp file (Cloud Function should also do this)
-      try { await deleteObject(storageRef) } catch {}
+      // Cleanup temp file only if we uploaded one
+      if (needsCleanup) {
+        try { await deleteObject(ref(storage, storagePath)) } catch {}
+      }
     } catch (err) {
       console.error('Subtitle generation error:', err)
       setError(err.message || 'Erreur lors de la génération des sous-titres')
@@ -75,7 +100,7 @@ export default function SubtitlePanel() {
           )}
           <button
             onClick={handleGenerate}
-            disabled={generatingSubtitles || !videoFile}
+            disabled={generatingSubtitles || (!videoFile && !videoUrl)}
             className="text-xs bg-sage-500 hover:bg-sage-600 disabled:opacity-40
                        text-white px-3 py-1 rounded-full font-medium transition"
           >

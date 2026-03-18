@@ -214,7 +214,6 @@ export default function ExportModal({ onClose }) {
         status: 'monté',
       }
       if (thumbnailUrl) updates.thumbnailUrl = thumbnailUrl
-      console.log('[ExportModal] Saving to Firestore:', contentItemId, updates)
       await updateItem(contentItemId, updates)
 
       setSaved(true)

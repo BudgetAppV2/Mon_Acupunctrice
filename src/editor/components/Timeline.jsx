@@ -48,6 +48,18 @@ export default function Timeline() {
         onClick={handleClick}
         style={{ minWidth: `${100 * timelineZoom}%` }}
       >
+        {/* Transparent range slider for drag & touch seeking */}
+        <input
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={0.01}
+          value={currentTime}
+          onChange={(e) => seekTo(clamp(parseFloat(e.target.value), trimStart, trimEnd))}
+          className="absolute inset-0 w-full opacity-0 cursor-pointer z-20"
+          style={{ height: '100%', margin: 0, padding: '0 16px' }}
+        />
+
         {/* Playhead */}
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-white z-10 pointer-events-none"
