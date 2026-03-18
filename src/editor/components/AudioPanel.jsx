@@ -254,7 +254,7 @@ function JamendoLibrary({ onImport }) {
     }
     // Stop previous
     if (audioRef.current) audioRef.current.pause()
-    const audio = new Audio(track.audio)
+    const audio = new Audio(`/proxy-audio?url=${encodeURIComponent(track.audio)}`)
     audio.volume = 0.5
     audio.play()
     audio.onended = () => setPreviewId(null)
@@ -367,7 +367,7 @@ function JamendoLibrary({ onImport }) {
                 onClick={() => {
                   if (audioRef.current) audioRef.current.pause()
                   setPreviewId(null)
-                  onImport(track.audio)
+                  onImport(`/proxy-audio?url=${encodeURIComponent(track.audio)}`)
                 }}
                 className="text-xs w-7 h-7 rounded-full bg-sage-500/20 text-sage-400
                            hover:bg-sage-500/40 flex items-center justify-center transition"

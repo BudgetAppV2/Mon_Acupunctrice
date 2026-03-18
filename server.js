@@ -79,6 +79,37 @@ app.get('/proxy-video', async (req, res) => {
   }
 })
 
+// Proxy for external audio (Jamendo, etc.) — bypasses COEP blocking
+app.get('/proxy-audio', async (req, res) => {
+  const url = req.query.url
+  if (!url) return res.status(400).send('URL invalide')
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return res.status(response.status).send('Fetch failed')
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'audio/mpeg')
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    res.setHeader('Accept-Ranges', 'bytes')
+    if (response.headers.get('content-length')) {
+      res.setHeader('Content-Length', response.headers.get('content-length'))
+    }
+    const reader = response.body.getReader()
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) { res.end(); break }
+        res.write(value)
+      }
+    }
+    pump().catch(err => {
+      console.error('Proxy audio stream error:', err)
+      res.end()
+    })
+  } catch (err) {
+    console.error('Proxy audio error:', err)
+    res.status(500).send('Proxy error')
+  }
+})
+
 // Serve static files from Vite build output
 app.use(express.static(path.join(__dirname, 'dist')))
 
